@@ -1,0 +1,2112 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CreativeFlow — KPI, Focus Journaling & HR Analytics</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+    }
+    /* Animasi lembut untuk pohon gamifikasi */
+    @keyframes sway {
+      0%, 100% { transform: rotate(-1.5deg); }
+      50% { transform: rotate(1.5deg); }
+    }
+    .tree-sway {
+      transform-origin: bottom center;
+      animation: sway 4s ease-in-out infinite;
+    }
+    @keyframes floatDrop {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-45px) scale(1.3); }
+    }
+    .water-drop-anim {
+      animation: floatDrop 1.2s ease-out forwards;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-800">
+
+  <!-- TOAST NOTIFICATION (Pengganti alert()) -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- =====================================================================
+       1. HALAMAN LOGIN & PEMILIHAN AKUN TIM
+       ===================================================================== -->
+  <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-emerald-50 p-4">
+    <div class="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-6 sm:p-8">
+      <div class="flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 text-white mx-auto mb-4 shadow-lg shadow-indigo-200">
+        <i data-lucide="sparkles" class="w-7 h-7"></i>
+      </div>
+      <h1 class="text-2xl font-extrabold text-center text-slate-900">CreativeFlow</h1>
+      <p class="text-center text-sm text-slate-500 mt-1">KPI, Focus Timer & Journaling Divisi Kreatif (CS Hybrid)</p>
+      <p id="connStatus" class="text-center text-xs font-semibold mt-2 hidden"></p>
+
+      <div class="mt-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Pilih Akun Tim</label>
+          <select id="loginUserSelect" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <!-- Diisi otomatis via JS -->
+          </select>
+        </div>
+
+        <div>
+          <label id="loginPinLabel" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">PIN Akses (Demo: terisi otomatis)</label>
+          <input type="password" id="loginPinInput" value="1234" maxlength="4" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm font-mono tracking-widest text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="••••" />
+        </div>
+
+        <button id="btnLogin" onclick="handleLogin()" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-semibold rounded-xl shadow-md shadow-indigo-200 transition flex items-center justify-center gap-2">
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          <span>Masuk & Mulai Rekam Aktivitas</span>
+        </button>
+      </div>
+
+      <div class="mt-6 pt-5 border-t border-slate-100">
+        <p class="text-xs text-slate-400 text-center leading-relaxed">
+          Semua aktivitas login, fokus timer, dan penyelesaian tugas tercatat otomatis untuk perhitungan <strong>KPI Adil</strong> & evaluasi beban kerja <strong>HR (Maks. 25% / 2 Jam Harian)</strong>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       2. APLIKASI UTAMA (WORKSPACE ANGGOTA, LEADER, & DASHBOARD HR)
+       ===================================================================== -->
+  <div id="appShell" class="hidden min-h-screen flex flex-col">
+    
+    <!-- TOP NAVBAR -->
+    <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+        <!-- Brand -->
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+            <i data-lucide="sprout" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-900 tracking-tight">CreativeFlow</span>
+              <span id="roleBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase">Leader</span>
+            </div>
+            <p class="text-[11px] text-slate-500 hidden sm:block">Divisi Kreatif &bull; Alokasi Maks. 25% Jam Kerja (120 Menit/Hari)</p>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs (Dinamis sesuai Role) -->
+        <nav id="mainNav" class="flex items-center gap-1 sm:gap-2 overflow-x-auto py-1">
+          <!-- Diisi via JS -->
+        </nav>
+
+        <!-- User Profile & Logout -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <div class="text-right hidden md:block">
+            <p id="currentUserName" class="text-xs font-bold text-slate-800">Nama User</p>
+            <p id="currentUserDiv" class="text-[11px] text-slate-500">Customer Service</p>
+          </div>
+          <button onclick="handleLogout()" title="Keluar & Simpan Log" class="p-2.5 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      
+      <!-- =================================================================
+           VIEW A: WORKSPACE KREATIF (ANGGOTA & LEADER)
+           ================================================================= -->
+      <div id="viewWorkspace" class="space-y-6">
+        
+        <!-- BARIS ATAS: GAMIFIKASI POHON BERSAMA + FOCUS TIMER / STOPWATCH -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- KARTU GAMIFIKASI: HUTAN KREATIF BERSAMA (5 Kolom) -->
+          <div class="lg:col-span-5 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-start justify-between relative z-10">
+              <div>
+                <span class="inline-flex items-center gap-1.5 text-xs font-semibold bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
+                  <i data-lucide="trees" class="w-3.5 h-3.5"></i> Gamifikasi Tim
+                </span>
+                <h2 class="text-xl font-bold mt-2">Pohon Kreativitas Bersama</h2>
+                <p id="treeStageLabel" class="text-emerald-100 text-xs mt-0.5">Tahap 3: Pohon Rindang Produktif</p>
+              </div>
+              <div class="text-right bg-black/15 rounded-2xl px-3 py-2 backdrop-blur-sm">
+                <p class="text-[11px] text-emerald-100">Tetes Air Tim</p>
+                <p id="waterCountDisplay" class="text-lg font-extrabold">24 💧</p>
+              </div>
+            </div>
+
+            <!-- Visual SVG Pohon yang Tumbuh Dinamis -->
+            <div id="treeVisualContainer" class="my-4 flex items-center justify-center relative h-40">
+              <!-- Diisi SVG dinamis berdasarkan poin tim -->
+            </div>
+
+            <!-- Progress Bar Pertumbuhan Pohon -->
+            <div class="relative z-10 bg-black/15 rounded-2xl p-3.5 backdrop-blur-sm">
+              <div class="flex justify-between text-xs font-medium mb-1.5">
+                <span>Pertumbuhan Kolektif</span>
+                <span id="treePercentText">68% menuju Pohon Emas</span>
+              </div>
+              <div class="w-full h-2.5 bg-emerald-950/40 rounded-full overflow-hidden">
+                <div id="treeProgressBar" class="h-full bg-amber-300 rounded-full transition-all duration-700" style="width: 68%"></div>
+              </div>
+              <p class="text-[11px] text-emerald-100 mt-2">
+                💡 Selesaikan tugas harian untuk menyiram (+1💧) & menyuburkan pohon bersama!
+              </p>
+            </div>
+          </div>
+
+          <!-- KARTU FOCUS TIMER & STOPWATCH + KUOTA 25% JAM KERJA (7 Kolom) -->
+          <div class="lg:col-span-7 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse"></span>
+                  <h2 class="text-lg font-bold text-slate-900">Mode Fokus Kreatif (Izin Lepas CS)</h2>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">Gunakan timer/stopwatch saat mengerjakan konten agar tercatat valid di KPI & HR.</p>
+              </div>
+
+              <!-- Switcher Mode: Countdown Timer vs Stopwatch -->
+              <div class="inline-flex rounded-xl bg-slate-100 p-1">
+                <button id="btnModeTimer" onclick="setTimerMode('timer')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-indigo-600 shadow-sm transition">
+                  Timer Fokus
+                </button>
+                <button id="btnModeStopwatch" onclick="setTimerMode('stopwatch')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition">
+                  Stopwatch
+                </button>
+              </div>
+            </div>
+
+            <!-- Area Kontrol Timer -->
+            <div class="my-5 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+              <div class="sm:col-span-5 text-center sm:text-left bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                <p id="timerModeSubtitle" class="text-[11px] font-semibold uppercase tracking-wider text-indigo-600">Sesi Fokus (25 Menit)</p>
+                <div id="timerClockDisplay" class="text-4xl font-extrabold font-mono text-slate-900 my-1 tracking-tight">25:00</div>
+                <div id="timerPresetRow" class="flex items-center justify-center sm:justify-start gap-1.5 mt-2">
+                  <button onclick="setPresetMinutes(15)" class="text-[11px] px-2 py-1 rounded-md bg-white border border-slate-200 hover:border-indigo-400 font-medium">15m</button>
+                  <button onclick="setPresetMinutes(25)" class="text-[11px] px-2 py-1 rounded-md bg-white border border-slate-200 hover:border-indigo-400 font-medium">25m</button>
+                  <button onclick="setPresetMinutes(45)" class="text-[11px] px-2 py-1 rounded-md bg-white border border-slate-200 hover:border-indigo-400 font-medium">45m</button>
+                </div>
+              </div>
+
+              <div class="sm:col-span-7 space-y-3">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Tugas yang Sedang Dikerjakan:</label>
+                  <select id="focusTaskSelect" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <!-- Diisi daftar tugas aktif user -->
+                  </select>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                  <button id="btnStartPauseTimer" onclick="toggleTimer()" class="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 transition">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                    <span id="btnStartPauseLabel">Mulai Fokus</span>
+                  </button>
+                  <button onclick="saveFocusSession()" class="py-2.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 transition" title="Simpan durasi ke log aktivitas">
+                    <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                    <span>Catat Durasi</span>
+                  </button>
+                  <button onclick="resetTimer()" class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition" title="Reset">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Indikator Kuota 25% Jam Kerja (120 Menit / Hari) -->
+            <div class="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3.5">
+              <div class="flex items-center justify-between text-xs mb-1.5">
+                <span class="font-semibold text-amber-900 flex items-center gap-1.5">
+                  <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600"></i>
+                  Kuota Kerja Kreatif Hari Ini (Batas Adil 25% dari 8 Jam CS)
+                </span>
+                <span id="dailyQuotaText" class="font-bold text-amber-900">45 / 120 Menit (Normal)</span>
+              </div>
+              <div class="w-full h-2 bg-amber-200/70 rounded-full overflow-hidden">
+                <div id="dailyQuotaBar" class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: 37.5%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BARIS TENGAH: FILTER KATEGORI, TOMBOL LEADER & DAFTAR TO-DO LIST -->
+        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">To-Do List & Jurnal Tugas Kreatif</h3>
+              <p class="text-xs text-slate-500">Centang tugas yang selesai untuk mengklaim poin KPI dan menyiram pohon tim.</p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <!-- Tombol Khusus Leader -->
+              <button id="btnOpenTaskModal" onclick="openModal('modalAddTask')" class="hidden py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm flex items-center gap-1.5 transition">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Buat Tugas / Tag Anggota</span>
+              </button>
+              <button id="btnOpenMemberModal" onclick="openModal('modalAddMember')" class="hidden py-2.5 px-3.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold flex items-center gap-1.5 transition">
+                <i data-lucide="user-plus" class="w-4 h-4"></i>
+                <span>+ Anggota Tim</span>
+              </button>
+              <button id="btnOpenCatModal" onclick="openModal('modalAddCategory')" class="hidden py-2.5 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition">
+                <i data-lucide="folder-plus" class="w-4 h-4"></i>
+                <span>+ Kategori</span>
+              </button>
+              <!-- Tombol Aspirasi Anonim untuk Anggota -->
+              <button onclick="openModal('modalAspiration')" class="py-2.5 px-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold flex items-center gap-1.5 transition">
+                <i data-lucide="message-square-heart" class="w-4 h-4"></i>
+                <span>Aspirasi Anonim</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter Bar: Frekuensi (Harian/Mingguan/Bulanan) & Kategori + Sub-Kategori -->
+          <div class="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100">
+            <!-- Filter Frekuensi -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+              <button onclick="setFreqFilter('all')" data-freq="all" class="freq-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white">Semua Waktu</button>
+              <button onclick="setFreqFilter('Harian')" data-freq="Harian" class="freq-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">Harian</button>
+              <button onclick="setFreqFilter('Mingguan')" data-freq="Mingguan" class="freq-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">Mingguan</button>
+              <button onclick="setFreqFilter('Bulanan')" data-freq="Bulanan" class="freq-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">Bulanan</button>
+            </div>
+
+            <!-- Filter Kategori & Sub-Kategori -->
+            <div class="flex items-center gap-2">
+              <select id="filterCategorySelect" onchange="handleCategoryFilterChange()" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <!-- Diisi otomatis -->
+              </select>
+              <select id="filterSubCategorySelect" onchange="renderTasks()" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="all">Semua Sub-Kategori</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Daftar Tugas -->
+          <div id="taskListContainer" class="mt-4 space-y-3">
+            <!-- Diisi otomatis via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================
+           VIEW B: KALENDER KERJA DIVISI KREATIF
+           ================================================================= -->
+      <div id="viewCalendar" class="hidden space-y-6">
+        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 class="text-xl font-bold text-slate-900">Kalender Kerja & Deadline Divisi Kreatif</h2>
+              <p class="text-xs text-slate-500">Jadwal tayang konten, kampanye marketplace, dan tenggat waktu tim (<span id="calendarMonthLabel">bulan ini</span>).</p>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-semibold"><span class="w-2 h-2 rounded-full bg-indigo-600"></span> Aktif</span>
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-semibold"><span class="w-2 h-2 rounded-full bg-emerald-600"></span> Selesai</span>
+            </div>
+          </div>
+
+          <!-- Grid Kalender -->
+          <div class="grid grid-cols-7 gap-1.5 sm:gap-2 text-center text-xs font-bold text-slate-400 mb-2">
+            <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+          </div>
+          <div id="calendarGrid" class="grid grid-cols-7 gap-1.5 sm:gap-2">
+            <!-- Diisi otomatis via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================
+           VIEW C: PANEL KHUSUS LEADER (REKAP KPI PRIVAT & ASPIRASI ANONIM)
+           ================================================================= -->
+      <div id="viewLeader" class="hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Tabel KPI Seluruh Anggota (Hanya Leader) -->
+          <div class="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">Rahasia Leader</span>
+                <h2 class="text-lg font-bold text-slate-900 mt-1.5">Evaluasi Nilai KPI Anggota Kreatif</h2>
+                <p class="text-xs text-slate-500">Perhitungan adil berbasis rasio penyelesaian tugas (70%) + disiplin fokus timer (30%).</p>
+              </div>
+              <button onclick="exportReportCSV()" class="py-2 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                <span>Unduh Laporan KPI</span>
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-200 text-[11px] font-bold uppercase text-slate-400">
+                    <th class="py-3 px-2">Anggota Tim</th>
+                    <th class="py-3 px-2">Tugas Selesai</th>
+                    <th class="py-3 px-2">Poin KPI</th>
+                    <th class="py-3 px-2">Durasi Fokus</th>
+                    <th class="py-3 px-2">Skor Adil</th>
+                    <th class="py-3 px-2">Predikat</th>
+                  </tr>
+                </thead>
+                <tbody id="leaderKpiTableBody" class="divide-y divide-slate-100 text-sm">
+                  <!-- Diisi via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Kotak Aspirasi Anonim dari Anggota -->
+          <div class="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 flex flex-col">
+            <div class="flex items-center gap-2 mb-1">
+              <i data-lucide="mail-question" class="w-5 h-5 text-rose-500"></i>
+              <h3 class="text-lg font-bold text-slate-900">Kotak Aspirasi Anonim</h3>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">Identitas pengirim disembunyikan sepenuhnya oleh sistem.</p>
+
+            <div id="aspirationListContainer" class="space-y-3 flex-1 overflow-y-auto max-h-96 pr-1">
+              <!-- Diisi via JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================
+           VIEW D: DASHBOARD HR (ANALISIS BEBAN KERJA 25% & HEALTH CHECK)
+           ================================================================= -->
+      <div id="viewHR" class="hidden space-y-6">
+        <!-- Banner Perspektif HR -->
+        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-lg">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider bg-white/15 px-3 py-1 rounded-full text-indigo-200">HR Executive Report</span>
+              <h2 class="text-2xl font-extrabold mt-2">Audit Beban Kerja Divisi Kreatif (CS Hybrid)</h2>
+              <p class="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
+                Memantau keseimbangan antara tugas utama <strong>Customer Service (75% / 6 Jam)</strong> dan tugas tambahan <strong>Divisi Kreatif (Maks. 25% / 2 Jam per hari)</strong> untuk mencegah <em>burnout</em> dan penurunan SLA CS.
+              </p>
+            </div>
+            <button onclick="window.print()" class="self-start md:self-center py-2.5 px-4 rounded-xl bg-white text-slate-900 hover:bg-indigo-50 text-xs font-bold flex items-center gap-2 shadow-sm transition">
+              <i data-lucide="printer" class="w-4 h-4"></i>
+              <span>Cetak Laporan HR</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Ringkasan Metrik HR (4 Kartu) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+            <p class="text-xs font-semibold text-slate-500">Rata-rata Alokasi Kreatif</p>
+            <p id="hrAvgRatio" class="text-2xl font-extrabold text-slate-900 mt-1">19.4%</p>
+            <span class="inline-block mt-2 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700">Batas Aman ≤ 25%</span>
+          </div>
+          <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+            <p class="text-xs font-semibold text-slate-500">Status Kesehatan Divisi</p>
+            <p id="hrDivisionHealth" class="text-2xl font-extrabold text-emerald-600 mt-1">Optimal & Sehat</p>
+            <span class="inline-block mt-2 text-[11px] text-slate-500">Tidak mengganggu jam CS</span>
+          </div>
+          <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+            <p class="text-xs font-semibold text-slate-500">Anggota Terindikasi Overload</p>
+            <p id="hrOverloadCount" class="text-2xl font-extrabold text-rose-600 mt-1">1 Orang</p>
+            <span class="inline-block mt-2 text-[11px] text-slate-500">Melebihi 120 menit/hari</span>
+          </div>
+          <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+            <p class="text-xs font-semibold text-slate-500">Tingkat Penyelesaian Tugas</p>
+            <p id="hrCompletionRate" class="text-2xl font-extrabold text-indigo-600 mt-1">84%</p>
+            <span class="inline-block mt-2 text-[11px] text-slate-500">Periode berjalan</span>
+          </div>
+        </div>
+
+        <!-- Tabel Analisis Beban Kerja per Anggota (Sudut Pandang HR) -->
+        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+          <h3 class="text-lg font-bold text-slate-900">Analisis Proporsi Jam Kerja CS vs Kreatif per Karyawan</h3>
+          <p class="text-xs text-slate-500 mb-5">Standar 1 hari kerja = 480 menit (8 jam). Toleransi tugas kreatif = maksimal 120 menit (25%).</p>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-200 text-[11px] font-bold uppercase text-slate-400">
+                  <th class="py-3 px-3">Nama Karyawan</th>
+                  <th class="py-3 px-3">Waktu CS Utama</th>
+                  <th class="py-3 px-3">Waktu Kreatif</th>
+                  <th class="py-3 px-3">Rasio Kreatif (Maks 25%)</th>
+                  <th class="py-3 px-3">Status Beban HR</th>
+                  <th class="py-3 px-3">Rekomendasi Tindakan HR</th>
+                </tr>
+              </thead>
+              <tbody id="hrWorkloadTableBody" class="divide-y divide-slate-100 text-sm">
+                <!-- Diisi via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================
+           VIEW E: REKAM AKTIVITAS TIM (AUDIT LOG REALTIME)
+           ================================================================= -->
+      <div id="viewLogs" class="hidden">
+        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900">Log Aktivitas & Jejak Audit Tim</h2>
+              <p class="text-xs text-slate-500">Rekaman otomatis setiap login, sesi fokus timer, dan penyelesaian checklist sebagai bukti KPI.</p>
+            </div>
+            <span class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-600" id="totalLogBadge">0 Aktivitas</span>
+          </div>
+
+          <div id="activityLogFeed" class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+            <!-- Diisi via JS -->
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- =====================================================================
+       MODAL 1: LEADER BUAT TUGAS / TAG ANGGOTA
+       ===================================================================== -->
+  <div id="modalAddTask" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-lg font-bold text-slate-900">Buat To-Do List & Tag Anggota</h3>
+        <button onclick="closeModal('modalAddTask')" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <form onsubmit="handleCreateTask(event)" class="mt-4 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Judul Tugas Kreatif</label>
+          <input type="text" id="newTaskTitle" required placeholder="Contoh: Edit Video Reels Promo Gajian" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori Utama</label>
+            <select id="newTaskCategory" onchange="updateNewTaskSubCategories()" class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-slate-50"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Sub-Kategori</label>
+            <select id="newTaskSubCategory" class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-slate-50"></select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Tag / Tugaskan Kepada</label>
+            <select id="newTaskAssignee" class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-slate-50"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Jadwal</label>
+            <select id="newTaskFrequency" class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-slate-50">
+              <option value="Harian">Harian (Menyiram +1💧)</option>
+              <option value="Mingguan">Mingguan (Pupuk +2💧)</option>
+              <option value="Bulanan">Bulanan (Panen +5💧)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Poin KPI</label>
+            <input type="number" id="newTaskPoints" value="20" min="5" max="100" required class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Est. Menit</label>
+            <input type="number" id="newTaskMinutes" value="30" min="10" max="120" required class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Deadline</label>
+            <input type="date" id="newTaskDeadline" value="2026-11-15" required class="w-full rounded-xl border border-slate-200 px-2.5 py-2 text-xs" />
+          </div>
+        </div>
+
+        <div class="pt-3 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalAddTask')" class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Batal</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm">Simpan & Tag Anggota</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL 2: LEADER TAMBAH KATEGORI & SUB-KATEGORI KUSTOM
+       ===================================================================== -->
+  <div id="modalAddCategory" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-lg font-bold text-slate-900">Tambah Kategori To-Do List</h3>
+        <button onclick="closeModal('modalAddCategory')" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="handleAddCategory(event)" class="mt-4 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kategori Baru</label>
+          <input type="text" id="customCatName" required placeholder="Contoh: Event Offline / KOL" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Sub-Kategori (pisahkan dengan koma)</label>
+          <input type="text" id="customSubCatList" required placeholder="Contoh: TikTok Live, Brief KOL, Fotografi" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm" />
+        </div>
+        <div class="pt-2 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalAddCategory')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600">Batal</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Simpan Kategori</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL BARU: LEADER TAMBAH ANGGOTA TIM BARU
+       ===================================================================== -->
+  <div id="modalAddMember" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <i data-lucide="user-plus" class="w-5 h-5 text-indigo-600"></i>
+          <h3 class="text-lg font-bold text-slate-900">Tambah Anggota Tim Baru</h3>
+        </div>
+        <button onclick="closeModal('modalAddMember')" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <form onsubmit="handleAddMember(event)" class="mt-4 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap Anggota</label>
+          <input type="text" id="newMemberName" required placeholder="Contoh: Dewi Lestari" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Peran Akses</label>
+            <select id="newMemberRole" class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-slate-50">
+              <option value="member">Anggota (CS - Kreatif)</option>
+              <option value="leader">Co-Leader / Admin</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">PIN Login (4 Digit)</label>
+            <input type="text" id="newMemberPin" required maxlength="4" placeholder="1234" value="1234" class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-mono tracking-widest text-center" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Divisi Utama</label>
+          <input type="text" id="newMemberDivision" required value="Customer Service" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm" />
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalAddMember')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Batal</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm">Simpan Anggota Baru</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL 3: KIRIM ASPIRASI ANONIM KE LEADER
+       ===================================================================== -->
+  <div id="modalAspiration" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>
+          <h3 class="text-lg font-bold text-slate-900">Aspirasi Anonim untuk Leader</h3>
+        </div>
+        <button onclick="closeModal('modalAspiration')" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="handleSendAspiration(event)" class="mt-4 space-y-4">
+        <p class="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
+          Nama dan ID akun Anda <strong>tidak akan direkam</strong> dalam fitur ini. Sampaikan kendala pembagian waktu CS-Kreatif, ide konten, atau masukan kerja secara jujur.
+        </p>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Topik Masukan</label>
+          <select id="aspirationTopic" class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-slate-50">
+            <option value="Beban Kerja CS vs Kreatif">Beban Kerja CS vs Kreatif</option>
+            <option value="Ide Konten & Kampanye">Ide Konten & Kampanye</option>
+            <option value="Kendala Alat / Brief">Kendala Alat / Brief</option>
+            <option value="Apresiasi & Lainnya">Apresiasi & Lainnya</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Pesan Anda</label>
+          <textarea id="aspirationText" rows="4" required placeholder="Tuliskan aspirasi atau kendala Anda di sini..." class="w-full rounded-xl border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+        </div>
+        <div class="pt-2 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalAspiration')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600">Batal</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold">Kirim Secara Anonim</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       JAVASCRIPT: LOGIKA APLIKASI, PERHITUNGAN ADIL, GAMIFIKASI & TIMER
+       ===================================================================== -->
+  <script>
+    // -----------------------------------------------------------------------
+    // 1. STATE & DATA AWAL (SIMULASI REALTIME + SIAP INTEGRASI GOOGLE SHEETS)
+    // -----------------------------------------------------------------------
+    let USERS = [
+      { id: 'U01', name: 'Rina (Leader Kreatif)', role: 'leader', pin: '1234', division: 'Lead Kreatif & CS' },
+      { id: 'U02', name: 'Andi Pratama', role: 'member', pin: '1111', division: 'Customer Service' },
+      { id: 'U03', name: 'Siti Nurhaliza', role: 'member', pin: '2222', division: 'Customer Service' },
+      { id: 'U04', name: 'Budi Santoso', role: 'member', pin: '3333', division: 'Customer Service' },
+      { id: 'U05', name: 'Ibu Diana (HRD)', role: 'hr', pin: '9999', division: 'Human Resources' }
+    ];
+
+    let categories = [
+      { name: 'Sosial Media', subs: ['Instagram', 'TikTok', 'Facebook', 'YouTube'] },
+      { name: 'Marketplace', subs: ['Shopee Banner', 'Tokopedia Feed', 'Live Streaming'] },
+      { name: 'Marketing', subs: ['Copywriting Promo', 'Campaign Ads', 'Email Blast'] },
+      { name: 'Operasional', subs: ['Rapat Evaluasi', 'Arsip Aset Desain', 'Riset Tren'] }
+    ];
+
+    let tasks = [
+      {
+        id: 'T-101',
+        title: 'Desain Carousel Edukasi Produk Baru',
+        category: 'Sosial Media',
+        subCategory: 'Instagram',
+        frequency: 'Harian',
+        assigneeId: 'U02',
+        assigneeName: 'Andi Pratama',
+        points: 25,
+        estMinutes: 45,
+        actualMinutes: 45,
+        deadline: '2026-11-12',
+        status: 'completed',
+        urgentTag: false
+      },
+      {
+        id: 'T-102',
+        title: 'Edit Video TikTok Trend Unboxing CS',
+        category: 'Sosial Media',
+        subCategory: 'TikTok',
+        frequency: 'Harian',
+        assigneeId: 'U03',
+        assigneeName: 'Siti Nurhaliza',
+        points: 30,
+        estMinutes: 60,
+        actualMinutes: 135, // Sengaja > 120 menit untuk mendemonstrasikan deteksi Overload HR
+        deadline: '2026-11-12',
+        status: 'completed',
+        urgentTag: false
+      },
+      {
+        id: 'T-103',
+        title: 'Update Frame Promo 11.11 Etalase Toko',
+        category: 'Marketplace',
+        subCategory: 'Shopee Banner',
+        frequency: 'Mingguan',
+        assigneeId: 'U02',
+        assigneeName: 'Andi Pratama',
+        points: 35,
+        estMinutes: 40,
+        actualMinutes: 0,
+        deadline: '2026-11-13',
+        status: 'pending',
+        urgentTag: true
+      },
+      {
+        id: 'T-104',
+        title: 'Riset Kata Kunci & Hook Iklan Akhir Bulan',
+        category: 'Marketing',
+        subCategory: 'Campaign Ads',
+        frequency: 'Bulanan',
+        assigneeId: 'U04',
+        assigneeName: 'Budi Santoso',
+        points: 40,
+        estMinutes: 50,
+        actualMinutes: 30,
+        deadline: '2026-11-18',
+        status: 'pending',
+        urgentTag: true
+      },
+      {
+        id: 'T-105',
+        title: 'Review Kalender Konten & Audit KPI Mingguan',
+        category: 'Operasional',
+        subCategory: 'Rapat Evaluasi',
+        frequency: 'Mingguan',
+        assigneeId: 'U01',
+        assigneeName: 'Rina (Leader Kreatif)',
+        points: 30,
+        estMinutes: 45,
+        actualMinutes: 0,
+        deadline: '2026-11-14',
+        status: 'pending',
+        urgentTag: false
+      },
+      {
+        id: 'T-106',
+        title: 'Upload Video Shorts Testimoni Pelanggan',
+        category: 'Sosial Media',
+        subCategory: 'YouTube',
+        frequency: 'Harian',
+        assigneeId: 'U03',
+        assigneeName: 'Siti Nurhaliza',
+        points: 20,
+        estMinutes: 30,
+        actualMinutes: 0,
+        deadline: '2026-11-12',
+        status: 'pending',
+        urgentTag: true
+      }
+    ];
+
+    let aspirations = [
+      {
+        id: 'ASP-1',
+        time: 'Hari ini, 08:30',
+        topic: 'Beban Kerja CS vs Kreatif',
+        message: 'Saat jam ramai chat CS (10.00 - 12.00), mohon izin fokus kreatif digeser ke jam 14.00 - 16.00 agar balasan chat pelanggan tetap cepat.'
+      },
+      {
+        id: 'ASP-2',
+        time: 'Kemarin, 16:15',
+        topic: 'Ide Konten & Kampanye',
+        message: 'Pertanyaan berulang di CS soal cara perawatan produk sangat cocok dijadikan konten Reels seri FAQ!'
+      }
+    ];
+
+    let activityLogs = [
+      { time: '09:00', user: 'Andi Pratama', role: 'member', action: 'Selesai Tugas', detail: 'Menyelesaikan: Desain Carousel Edukasi Produk Baru (+25 Poin KPI)', minutes: 45 },
+      { time: '08:45', user: 'Siti Nurhaliza', role: 'member', action: 'Fokus Timer', detail: 'Sesi fokus editing TikTok Trend Unboxing CS', minutes: 135 },
+      { time: '08:15', user: 'Rina (Leader Kreatif)', role: 'leader', action: 'Tag Deadline', detail: 'Mengingatkan deadline Shopee Banner kepada Andi Pratama', minutes: 0 }
+    ];
+
+    // State Sesi Pengguna & Filter
+    let currentUser = null;
+    let activeTab = 'workspace';
+    let freqFilter = 'all';
+    let waterDrops = 24;
+
+    // State Focus Timer & Stopwatch
+    let timerMode = 'timer'; // 'timer' | 'stopwatch'
+    let timerInterval = null;
+    let isTimerRunning = false;
+    let timerSeconds = 25 * 60; // default 25 menit
+    let initialTimerSeconds = 25 * 60;
+
+    // -----------------------------------------------------------------------
+    // 1B. KONEKSI BACKEND GOOGLE APPS SCRIPT (Code.gs)
+    // -----------------------------------------------------------------------
+    // >>> TEMPEL URL WEB APP (hasil Deploy Apps Script, berakhiran /exec) DI BAWAH INI <<<
+    // Selama masih berisi teks PASTE_..., aplikasi berjalan dalam MODE DEMO
+    // (data hanya di memori browser dan hilang saat halaman dimuat ulang).
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxemALKyrCEhKUOOairHybsQHDgc0p9f9cBJ9bC28EoXqkooEHBes_lSiq0c1luyqJINA/exec';
+    const IS_ONLINE = /^https:\/\/script\.google\.com\/.+\/exec/.test(API_URL.trim());
+    const POLL_INTERVAL_MS = 45000; // sinkronisasi otomatis tiap 45 detik saat login
+
+    const DEFAULT_CATEGORIES = JSON.parse(JSON.stringify(categories));
+    const ACTION_LABELS = {
+      ADD_MEMBER: 'Tambah Anggota Baru',
+      ADD_CATEGORY: 'Tambah Kategori',
+      CREATE_TASK: 'Buat Tugas Baru',
+      COMPLETE_TASK: 'Checklist Selesai',
+      REOPEN_TASK: 'Batal Checklist',
+      FOCUS_SESSION: 'Catat Durasi Fokus'
+    };
+
+    let pollTimer = null;
+    let sessionToken = ''; // token sesi login dari server (hanya di memori, hilang saat refresh)
+    let inflightWrites = 0;
+    let isSyncing = false;
+    let treeSeason = 1;
+    const pendingTaskOps = new Set();
+    const urgentTagged = new Set();
+
+    // Escape HTML: semua data dari Sheets WAJIB lewat sini sebelum masuk innerHTML
+    function esc(v) {
+      return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+      ));
+    }
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function todayStr() {
+      const d = new Date();
+      return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    }
+
+    function toLocalDateStr(v) {
+      if (!v) return '';
+      const str = String(v);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return str;
+      return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    }
+
+    function isSameLocalDay(iso) {
+      const d = new Date(iso);
+      return !isNaN(d.getTime()) && d.toDateString() === new Date().toDateString();
+    }
+
+    function formatLogTime(iso) {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return String(iso || '');
+      const hhmm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+      return isSameLocalDay(iso) ? hhmm : `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)} ${hhmm}`;
+    }
+
+    function formatAspirationTime(iso) {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return String(iso || '');
+      const hhmm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+      return isSameLocalDay(iso) ? `Hari ini, ${hhmm}` : `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}, ${hhmm}`;
+    }
+
+    function userPayload() {
+      return currentUser ? { id: currentUser.id, name: currentUser.name, role: currentUser.role } : null;
+    }
+
+    async function apiGet() {
+      const res = await fetch(API_URL, { method: 'GET' });
+      const json = await res.json();
+      if (json.status !== 'success') throw new Error(json.message || 'Gagal memuat data dari server.');
+      return json.data;
+    }
+
+    // Content-Type text/plain agar browser tidak mengirim preflight (Apps Script tidak mendukung OPTIONS)
+    async function apiPost(payload) {
+      if (!IS_ONLINE) return { status: 'success' };
+      if (payload.action !== 'LOGIN') payload.token = sessionToken;
+      inflightWrites++;
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.status !== 'success') {
+          if (json.code === 'AUTH' && payload.action !== 'LOGIN') handleSessionExpired();
+          throw new Error(json.message || 'Permintaan ditolak server.');
+        }
+        return json;
+      } finally {
+        inflightWrites--;
+      }
+    }
+
+    // Sesi di server habis / tidak sah -> kembali ke halaman login
+    function handleSessionExpired() {
+      if (!sessionToken) return;
+      sessionToken = '';
+      if (!currentUser) return;
+      if (isTimerRunning) { clearInterval(timerInterval); isTimerRunning = false; }
+      stopPolling();
+      currentUser = null;
+      document.getElementById('appShell').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      showToast('Sesi login berakhir. Silakan masuk kembali.', 'error');
+      loadInitialData();
+    }
+
+    // ---- Pemetaan baris Sheets -> objek yang dipakai UI ----
+    function mapUser(r) {
+      return {
+        id: String(r.UserID),
+        name: String(r.Nama),
+        role: String(r.Role),
+        division: String(r.DivisiUtama || ''),
+        targetMinutes: Number(r.TargetMaxMenitHarian) || 0
+      };
+    }
+
+    function mapTask(r) {
+      const status = String(r.Status || 'pending');
+      const deadline = toLocalDateStr(r.Deadline);
+      const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = `${tomorrow.getFullYear()}-${pad2(tomorrow.getMonth() + 1)}-${pad2(tomorrow.getDate())}`;
+      const id = String(r.TaskID);
+      return {
+        id,
+        title: String(r.Judul),
+        category: String(r.Kategori),
+        subCategory: String(r.SubKategori),
+        frequency: String(r.Frekuensi),
+        assigneeId: String(r.AssigneeID),
+        assigneeName: String(r.AssigneeNama),
+        points: Number(r.PoinKPI) || 0,
+        estMinutes: Number(r.EstimasiMenit) || 0,
+        actualMinutes: Number(r.DurasiAktualMenit) || 0,
+        deadline,
+        status,
+        urgentTag: status !== 'completed' && ((deadline && deadline <= tomorrowStr) || urgentTagged.has(id))
+      };
+    }
+
+    function mapCategory(r) {
+      return {
+        name: String(r.NamaKategori),
+        subs: String(r.SubKategoriList || '').split(',').map(x => x.trim()).filter(Boolean)
+      };
+    }
+
+    function mapAspiration(r) {
+      return {
+        id: String(r.AspirationID),
+        time: formatAspirationTime(r.Timestamp),
+        topic: String(r.KategoriPesan || 'Umum'),
+        message: String(r.Pesan || '')
+      };
+    }
+
+    function mapLog(r) {
+      return {
+        ts: r.Timestamp,
+        time: formatLogTime(r.Timestamp),
+        uid: String(r.UserID),
+        user: String(r.Nama),
+        role: String(r.Role),
+        action: ACTION_LABELS[r.Aksi] || String(r.Aksi),
+        detail: String(r.Detail || ''),
+        minutes: Number(r.DurasiMenit) || 0
+      };
+    }
+
+    function applyServerData(data) {
+      USERS = (data.users || []).map(mapUser);
+      const cats = (data.categories || []).map(mapCategory).filter(c => c.name);
+      categories = cats.length ? cats : JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+      tasks = (data.tasks || []).map(mapTask);
+      aspirations = (data.aspirations || []).map(mapAspiration).reverse(); // terbaru di atas
+      activityLogs = (data.logs || []).map(mapLog).reverse();              // terbaru di atas
+      const treeRows = data.tree || [];
+      if (treeRows.length) {
+        const last = treeRows[treeRows.length - 1];
+        waterDrops = Number(last.TotalWaterDrops) || 0;
+        treeSeason = last.Season || 1;
+      }
+    }
+
+    async function refreshData(showError) {
+      if (!IS_ONLINE || !sessionToken || isSyncing || inflightWrites > 0) return;
+      isSyncing = true;
+      try {
+        const res = await apiPost({ action: 'GET_DATA' });
+        const data = res.data;
+        if (!sessionToken || inflightWrites > 0) return; // ada penulisan baru saat mengambil data: buang hasil yang mungkin usang
+        const before = JSON.stringify([USERS, categories]);
+        applyServerData(data);
+        if (currentUser) {
+          const me = USERS.find(u => u.id === currentUser.id);
+          if (me) currentUser = me;
+          if (JSON.stringify([USERS, categories]) !== before) {
+            populateCategoryDropdowns();
+            populateAssigneeDropdown();
+          }
+          renderAll();
+        }
+      } catch (err) {
+        if (showError) showToast('Gagal sinkronisasi data: ' + err.message, 'error');
+        else console.warn('Sinkronisasi gagal:', err);
+      } finally {
+        isSyncing = false;
+      }
+    }
+
+    function startPolling() {
+      stopPolling();
+      if (!IS_ONLINE) return;
+      pollTimer = setInterval(() => { if (!document.hidden) refreshData(false); }, POLL_INTERVAL_MS);
+    }
+
+    function stopPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = null;
+    }
+
+    // Menit kerja kreatif HARI INI untuk satu user.
+    // Mode online: dihitung dari log (sesi fokus + tambahan menit saat checklist) pada hari ini.
+    // Mode demo: memakai akumulasi menit tugas (data contoh).
+    function workedMinutesToday(userId) {
+      if (!IS_ONLINE) {
+        return tasks.filter(t => t.assigneeId === userId).reduce((sum, t) => sum + (t.actualMinutes || 0), 0);
+      }
+      return activityLogs
+        .filter(l => l.uid === userId && isSameLocalDay(l.ts) &&
+          (l.action === 'Catat Durasi Fokus' || l.action === 'Checklist Selesai'))
+        .reduce((sum, l) => sum + (l.minutes || 0), 0);
+    }
+
+    function getTreeProgress() {
+      const completedCount = tasks.filter(t => t.status === 'completed').length;
+      const totalCount = tasks.length || 1;
+      const percent = Math.min(100, Math.round((completedCount / totalCount) * 100 + (waterDrops * 0.8)));
+
+      let stageName = 'Tahap 1: Bibit Tunas Baru';
+      let treeScale = 0.65;
+      let hasFruits = false;
+
+      if (percent >= 80) {
+        stageName = 'Tahap 5: Pohon Emas Berbuah Lebat 🌟';
+        treeScale = 1.05;
+        hasFruits = true;
+      } else if (percent >= 60) {
+        stageName = 'Tahap 4: Pohon Rindang Produktif 🌳';
+        treeScale = 0.95;
+      } else if (percent >= 40) {
+        stageName = 'Tahap 3: Pohon Muda Tumbuh Kuat 🌿';
+        treeScale = 0.85;
+      } else if (percent >= 20) {
+        stageName = 'Tahap 2: Tunas Berdaun Hijau 🌱';
+        treeScale = 0.75;
+      }
+      return { percent, stageName, treeScale, hasFruits };
+    }
+
+    async function syncTree() {
+      if (!IS_ONLINE) return;
+      const p = getTreeProgress();
+      try {
+        await apiPost({
+          action: 'UPDATE_TREE',
+          tree: { season: treeSeason, totalWaterDrops: waterDrops, treePoints: p.percent, treeStage: p.stageName }
+        });
+      } catch (err) {
+        console.warn('Gagal menyimpan pohon tim:', err);
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 2. INISIALISASI HALAMAN LOGIN
+    // -----------------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('loginUserSelect').addEventListener('change', () => {
+        if (IS_ONLINE) return; // PIN tidak pernah dikirim ke browser pada mode online
+        const found = USERS.find(u => u.id === document.getElementById('loginUserSelect').value);
+        if (found) document.getElementById('loginPinInput').value = found.pin;
+      });
+
+      document.getElementById('loginPinInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleLogin();
+      });
+
+      setDefaultTaskDeadline();
+
+      if (IS_ONLINE) {
+        const pinInput = document.getElementById('loginPinInput');
+        pinInput.value = '';
+        pinInput.maxLength = 6;
+        pinInput.placeholder = 'Masukkan PIN';
+        document.getElementById('loginPinLabel').textContent = 'PIN Akses';
+        loadInitialData();
+      } else {
+        updateLoginUserDropdown();
+        setConnStatus('Mode DEMO: data tidak tersimpan. Isi API_URL pada script untuk terhubung ke Google Sheets.', 'warn');
+      }
+
+      lucide.createIcons();
+    });
+
+    function setConnStatus(text, type, withRetry) {
+      const el = document.getElementById('connStatus');
+      el.classList.remove('hidden', 'text-emerald-600', 'text-rose-600', 'text-amber-600', 'text-slate-500');
+      el.classList.add(type === 'ok' ? 'text-emerald-600' : type === 'error' ? 'text-rose-600' : type === 'warn' ? 'text-amber-600' : 'text-slate-500');
+      el.textContent = text;
+      if (withRetry) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'underline ml-1';
+        btn.textContent = 'Coba lagi';
+        btn.onclick = loadInitialData;
+        el.appendChild(btn);
+      }
+    }
+
+    function setDefaultTaskDeadline() {
+      const el = document.getElementById('newTaskDeadline');
+      if (!el) return;
+      const d = new Date(); d.setDate(d.getDate() + 3);
+      el.value = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    }
+
+    async function loadInitialData() {
+      const select = document.getElementById('loginUserSelect');
+      const btn = document.getElementById('btnLogin');
+      btn.disabled = true;
+      btn.classList.add('opacity-60');
+      select.innerHTML = '<option value="">Memuat daftar akun...</option>';
+      setConnStatus('Menghubungkan ke server...', 'info');
+      try {
+        applyServerData(await apiGet());
+        if (!USERS.length) {
+          select.innerHTML = '<option value="">(Belum ada akun)</option>';
+          setConnStatus('Belum ada data pengguna. Jalankan setupSheets() di Apps Script terlebih dahulu.', 'warn', true);
+          return;
+        }
+        updateLoginUserDropdown();
+        setConnStatus('Terhubung ke Google Sheets', 'ok');
+        btn.disabled = false;
+        btn.classList.remove('opacity-60');
+      } catch (err) {
+        select.innerHTML = '<option value="">(Gagal memuat)</option>';
+        setConnStatus('Gagal terhubung ke server: ' + err.message + '.', 'error', true);
+      }
+    }
+
+    async function handleLogin() {
+      const selectedId = document.getElementById('loginUserSelect').value;
+      const pin = document.getElementById('loginPinInput').value.trim();
+      const btn = document.getElementById('btnLogin');
+      if (!selectedId) {
+        showToast('Pilih akun tim terlebih dahulu.', 'error');
+        return;
+      }
+
+      let user = null;
+      if (IS_ONLINE) {
+        btn.disabled = true;
+        btn.classList.add('opacity-60');
+        try {
+          const res = await apiPost({ action: 'LOGIN', userId: selectedId, pin: pin });
+          sessionToken = res.token;
+          user = mapUser(res.user);
+          const full = await apiPost({ action: 'GET_DATA' });
+          applyServerData(full.data);
+        } catch (err) {
+          sessionToken = '';
+          showToast(err.message || 'Login gagal. Periksa ID dan PIN.', 'error');
+          return;
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove('opacity-60');
+        }
+        document.getElementById('loginPinInput').value = '';
+      } else {
+        const found = USERS.find(u => u.id === selectedId);
+        if (!found || found.pin !== pin) {
+          showToast('PIN tidak sesuai. Silakan periksa kembali.', 'error');
+          return;
+        }
+        user = found;
+      }
+
+      currentUser = user;
+      if (!IS_ONLINE) addActivityLog(user.name, user.role, 'Login Sistem', `Masuk ke aplikasi sebagai ${user.role.toUpperCase()}`, 0); // mode online: dicatat server
+
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('appShell').classList.remove('hidden');
+
+      setupRoleUI();
+      showToast(`Selamat datang, ${user.name}! Aktivitas Anda mulai direkam.`, 'success');
+      startPolling();
+      refreshData(false);
+    }
+
+    function handleLogout() {
+      if (isTimerRunning) toggleTimer();
+      if (!IS_ONLINE) addActivityLog(currentUser.name, currentUser.role, 'Logout Sistem', 'Keluar dari sesi kerja', 0);
+      if (IS_ONLINE && sessionToken) apiPost({ action: 'LOGOUT' }).catch(() => {}); // server mencatat log & menghapus sesi
+      sessionToken = '';
+      stopPolling();
+      currentUser = null;
+      document.getElementById('loginPinInput').value = IS_ONLINE ? '' : document.getElementById('loginPinInput').value;
+      document.getElementById('appShell').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      if (IS_ONLINE) loadInitialData(); // muat ulang daftar akun & kosongkan data di memori
+    }
+
+    // -----------------------------------------------------------------------
+    // 3. PENGATURAN UI BERDASARKAN ROLE (MEMBER, LEADER, HR)
+    // -----------------------------------------------------------------------
+    function setupRoleUI() {
+      document.getElementById('currentUserName').textContent = currentUser.name;
+      document.getElementById('currentUserDiv').textContent = currentUser.division;
+      
+      const badge = document.getElementById('roleBadge');
+      badge.textContent = currentUser.role.toUpperCase();
+      badge.className = 'text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase ' + (
+        currentUser.role === 'leader' ? 'bg-indigo-100 text-indigo-700' :
+        currentUser.role === 'hr' ? 'bg-amber-100 text-amber-800' :
+        'bg-emerald-100 text-emerald-700'
+      );
+
+      // Tampilkan tombol khusus Leader
+      const isLeader = currentUser.role === 'leader';
+      document.getElementById('btnOpenTaskModal').classList.toggle('hidden', !isLeader);
+      document.getElementById('btnOpenCatModal').classList.toggle('hidden', !isLeader);
+      document.getElementById('btnOpenMemberModal').classList.toggle('hidden', !isLeader);
+
+      // Bangun Navigasi Tab sesuai Hak Akses
+      const nav = document.getElementById('mainNav');
+      let tabs = [];
+
+      if (currentUser.role === 'hr') {
+        tabs = [
+          { id: 'hr', label: 'Laporan HR (25% Quota)', icon: 'bar-chart-3' },
+          { id: 'calendar', label: 'Kalender Divisi', icon: 'calendar' },
+          { id: 'logs', label: 'Audit Log Tim', icon: 'history' }
+        ];
+        activeTab = 'hr';
+      } else if (currentUser.role === 'leader') {
+        tabs = [
+          { id: 'workspace', label: 'Workspace & Tugas', icon: 'check-square' },
+          { id: 'leader', label: 'KPI Anggota & Aspirasi', icon: 'award' },
+          { id: 'calendar', label: 'Kalender Kerja', icon: 'calendar' },
+          { id: 'hr', label: 'Pratinjau HR', icon: 'shield' },
+          { id: 'logs', label: 'Log Aktivitas', icon: 'history' }
+        ];
+        activeTab = 'workspace';
+      } else {
+        // Member (Hanya melihat workspace, kalender, dan log — tidak bisa melihat nilai KPI anggota lain)
+        tabs = [
+          { id: 'workspace', label: 'To-Do & Fokus', icon: 'check-square' },
+          { id: 'calendar', label: 'Kalender Kerja', icon: 'calendar' },
+          { id: 'logs', label: 'Jejak Aktivitas Saya', icon: 'history' }
+        ];
+        activeTab = 'workspace';
+      }
+
+      nav.innerHTML = tabs.map(t => `
+        <button onclick="switchTab('${t.id}')" id="nav-${t.id}" class="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition ${activeTab === t.id ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">
+          <i data-lucide="${t.icon}" class="w-3.5 h-3.5"></i>
+          <span>${t.label}</span>
+        </button>
+      `).join('');
+
+      populateCategoryDropdowns();
+      populateAssigneeDropdown();
+      switchTab(activeTab);
+      renderAll();
+    }
+
+    function switchTab(tabId) {
+      activeTab = tabId;
+      const views = ['workspace', 'calendar', 'leader', 'hr', 'logs'];
+      views.forEach(v => {
+        const el = document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1));
+        if (el) el.classList.toggle('hidden', v !== tabId);
+
+        const btn = document.getElementById('nav-' + v);
+        if (btn) {
+          btn.className = `px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition ${v === tabId ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`;
+        }
+      });
+      renderAll();
+    }
+
+    function renderAll() {
+      renderTreeGamification();
+      updateDailyQuotaIndicator();
+      populateFocusTaskSelect();
+      renderTasks();
+      renderCalendar();
+      renderLeaderKPI();
+      renderAspirations();
+      renderHRDashboard();
+      renderLogs();
+      lucide.createIcons();
+    }
+
+    // -----------------------------------------------------------------------
+    // 4. GAMIFIKASI: MENANAM & MENYIRAM POHON BERSAMA
+    // -----------------------------------------------------------------------
+    function renderTreeGamification() {
+      const { percent, stageName, treeScale, hasFruits } = getTreeProgress();
+
+      document.getElementById('treeStageLabel').textContent = stageName;
+      document.getElementById('waterCountDisplay').textContent = `${waterDrops} 💧`;
+      document.getElementById('treePercentText').textContent = `${percent}% Pertumbuhan`;
+      document.getElementById('treeProgressBar').style.width = `${percent}%`;
+
+      // Gambar SVG Pohon Dinamis
+      const svgHTML = `
+        <svg viewBox="0 0 200 160" class="w-44 h-40 tree-sway drop-shadow-md" style="transform: scale(${treeScale})">
+          <!-- Tanah / Pot Alam -->
+          <ellipse cx="100" cy="145" rx="65" ry="10" fill="#064e3b" opacity="0.45" />
+          <!-- Batang Pohon -->
+          <path d="M92 145 Q95 105 90 80 L110 80 Q105 105 108 145 Z" fill="#78350f" />
+          <path d="M96 105 L75 85 L80 80 L98 98 Z" fill="#78350f" />
+          <path d="M104 100 L125 80 L120 75 L102 93 Z" fill="#78350f" />
+          <!-- Rimbun Daun -->
+          <circle cx="100" cy="62" r="38" fill="#a7f3d0" />
+          <circle cx="72" cy="74" r="26" fill="#6ee7b7" />
+          <circle cx="128" cy="74" r="26" fill="#6ee7b7" />
+          <circle cx="100" cy="44" r="28" fill="#ecfdf5" opacity="0.85" />
+          ${hasFruits ? `
+            <circle cx="82" cy="60" r="5" fill="#fbbf24" />
+            <circle cx="118" cy="65" r="5" fill="#fbbf24" />
+            <circle cx="100" cy="42" r="5" fill="#fbbf24" />
+            <circle cx="92" cy="78" r="5" fill="#fbbf24" />
+          ` : ''}
+        </svg>
+      `;
+      document.getElementById('treeVisualContainer').innerHTML = svgHTML;
+    }
+
+    function triggerWaterAnimation() {
+      const container = document.getElementById('treeVisualContainer');
+      const drop = document.createElement('div');
+      drop.className = 'water-drop-anim absolute text-2xl font-bold text-amber-200 pointer-events-none';
+      drop.textContent = '+1 💧 Subur!';
+      container.appendChild(drop);
+      setTimeout(() => drop.remove(), 1200);
+    }
+
+    // -----------------------------------------------------------------------
+    // 5. FOCUS TIMER & STOPWATCH (IZIN LEPAS CS SEMENTARA)
+    // -----------------------------------------------------------------------
+    function setTimerMode(mode) {
+      if (isTimerRunning) toggleTimer();
+      timerMode = mode;
+
+      const btnT = document.getElementById('btnModeTimer');
+      const btnS = document.getElementById('btnModeStopwatch');
+      const presets = document.getElementById('timerPresetRow');
+
+      if (mode === 'timer') {
+        btnT.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-indigo-600 shadow-sm transition';
+        btnS.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition';
+        presets.classList.remove('hidden');
+        timerSeconds = 25 * 60;
+        initialTimerSeconds = 25 * 60;
+        document.getElementById('timerModeSubtitle').textContent = 'Sesi Fokus (25 Menit)';
+      } else {
+        btnS.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-indigo-600 shadow-sm transition';
+        btnT.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition';
+        presets.classList.add('hidden');
+        timerSeconds = 0;
+        document.getElementById('timerModeSubtitle').textContent = 'Stopwatch Durasi Kerja';
+      }
+      updateTimerDisplay();
+    }
+
+    function setPresetMinutes(mins) {
+      if (isTimerRunning) toggleTimer();
+      timerSeconds = mins * 60;
+      initialTimerSeconds = mins * 60;
+      document.getElementById('timerModeSubtitle').textContent = `Sesi Fokus (${mins} Menit)`;
+      updateTimerDisplay();
+    }
+
+    function toggleTimer() {
+      const label = document.getElementById('btnStartPauseLabel');
+      if (isTimerRunning) {
+        clearInterval(timerInterval);
+        isTimerRunning = false;
+        label.textContent = 'Lanjut Fokus';
+      } else {
+        isTimerRunning = true;
+        label.textContent = 'Jeda';
+        const taskTitle = document.getElementById('focusTaskSelect').selectedOptions[0]?.text || 'Tugas Kreatif';
+        addActivityLog(currentUser.name, currentUser.role, 'Mulai Fokus', `Mode Fokus aktif untuk: ${taskTitle}`, 0, true);
+
+        timerInterval = setInterval(() => {
+          if (timerMode === 'timer') {
+            if (timerSeconds > 0) {
+              timerSeconds--;
+              updateTimerDisplay();
+            } else {
+              clearInterval(timerInterval);
+              isTimerRunning = false;
+              label.textContent = 'Mulai Fokus';
+              showToast('Sesi Fokus selesai! Jangan lupa klik "Catat Durasi".', 'success');
+            }
+          } else {
+            timerSeconds++;
+            updateTimerDisplay();
+          }
+        }, 1000);
+      }
+    }
+
+    function resetTimer() {
+      if (isTimerRunning) toggleTimer();
+      timerSeconds = timerMode === 'timer' ? initialTimerSeconds : 0;
+      document.getElementById('btnStartPauseLabel').textContent = 'Mulai Fokus';
+      updateTimerDisplay();
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(timerSeconds / 60);
+      const secs = timerSeconds % 60;
+      document.getElementById('timerClockDisplay').textContent =
+        `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    async function saveFocusSession() {
+      const elapsedSeconds = timerMode === 'timer' ? (initialTimerSeconds - timerSeconds) : timerSeconds;
+      let recordedMinutes;
+      if (IS_ONLINE) {
+        recordedMinutes = Math.round(elapsedSeconds / 60);
+        if (recordedMinutes < 1) {
+          showToast('Durasi fokus kurang dari 1 menit, belum ada yang dicatat.', 'info');
+          return;
+        }
+      } else {
+        // Mode demo: minimal 5 menit supaya efeknya terlihat saat mencoba
+        recordedMinutes = Math.max(5, Math.round(elapsedSeconds / 60));
+      }
+
+      const taskId = document.getElementById('focusTaskSelect').value;
+      const task = tasks.find(t => t.id === taskId);
+      const detail = task
+        ? `Mengerjakan "${task.title}" selama ${recordedMinutes} menit`
+        : `Sesi fokus mandiri selama ${recordedMinutes} menit`;
+
+      // Update tampilan lebih dulu (optimistic), lalu simpan ke server
+      if (task) task.actualMinutes = (task.actualMinutes || 0) + recordedMinutes;
+      addActivityLog(currentUser.name, currentUser.role, 'Catat Durasi Fokus', detail, recordedMinutes);
+      showToast(`Berhasil mencatat ${recordedMinutes} menit fokus${task ? ` untuk "${task.title}"` : ''}!`, 'success');
+      resetTimer();
+      renderAll();
+
+      try {
+        await apiPost({ action: 'LOG_TIME', user: userPayload(), detail, minutes: recordedMinutes, taskId: task ? task.id : '' });
+      } catch (err) {
+        showToast('Gagal menyimpan durasi ke server: ' + err.message, 'error');
+        await refreshData(false);
+      }
+    }
+
+    function updateDailyQuotaIndicator() {
+      if (!currentUser) return;
+      // Total menit kreatif hari ini milik user yang sedang login
+      const myMinutes = workedMinutesToday(currentUser.id);
+
+      const maxQuota = currentUser.targetMinutes > 0 ? currentUser.targetMinutes : 120; // default 25% dari 480 menit (8 jam)
+      const pct = Math.min(100, Math.round((myMinutes / maxQuota) * 100));
+      const isOverload = myMinutes > maxQuota;
+
+      const textEl = document.getElementById('dailyQuotaText');
+      const barEl = document.getElementById('dailyQuotaBar');
+
+      textEl.textContent = `${myMinutes} / ${maxQuota} Menit (${isOverload ? 'OVERLOAD >25%' : 'Aman ≤25%'})`;
+      textEl.className = `font-bold ${isOverload ? 'text-rose-600' : 'text-emerald-700'}`;
+      barEl.style.width = `${pct}%`;
+      barEl.className = `h-full rounded-full transition-all duration-500 ${isOverload ? 'bg-rose-500' : 'bg-emerald-500'}`;
+    }
+
+    // -----------------------------------------------------------------------
+    // 6. TO-DO LIST, KATEGORI, TAG ANGGOTA & CHECKLIST KPI
+    // -----------------------------------------------------------------------
+    function populateCategoryDropdowns() {
+      const filterCat = document.getElementById('filterCategorySelect');
+      const modalCat = document.getElementById('newTaskCategory');
+      const prevFilter = filterCat.value;
+      const prevModal = modalCat.value;
+      const opt = (v, label) => `<option value="${esc(v)}">${esc(label)}</option>`;
+
+      filterCat.innerHTML = opt('all', 'Semua Kategori') + categories.map(c => opt(c.name, c.name)).join('');
+      modalCat.innerHTML = categories.map(c => opt(c.name, c.name)).join('');
+
+      if (Array.from(filterCat.options).some(o => o.value === prevFilter)) filterCat.value = prevFilter;
+      if (prevModal && Array.from(modalCat.options).some(o => o.value === prevModal)) modalCat.value = prevModal;
+      updateNewTaskSubCategories();
+    }
+
+    function handleCategoryFilterChange() {
+      const catName = document.getElementById('filterCategorySelect').value;
+      const subSelect = document.getElementById('filterSubCategorySelect');
+      const opt = (v, label) => `<option value="${esc(v)}">${esc(label)}</option>`;
+
+      if (catName === 'all') {
+        subSelect.innerHTML = opt('all', 'Semua Sub-Kategori');
+      } else {
+        const found = categories.find(c => c.name === catName);
+        subSelect.innerHTML = opt('all', `Semua ${catName}`) +
+          (found ? found.subs.map(sub => opt(sub, sub)).join('') : '');
+      }
+      renderTasks();
+    }
+
+    function updateNewTaskSubCategories() {
+      const catName = document.getElementById('newTaskCategory').value;
+      const subSelect = document.getElementById('newTaskSubCategory');
+      const prev = subSelect.value;
+      const found = categories.find(c => c.name === catName);
+      subSelect.innerHTML = found ? found.subs.map(sub => `<option value="${esc(sub)}">${esc(sub)}</option>`).join('') : '';
+      if (prev && Array.from(subSelect.options).some(o => o.value === prev)) subSelect.value = prev;
+    }
+
+    function populateAssigneeDropdown() {
+      const select = document.getElementById('newTaskAssignee');
+      const prev = select.value;
+      const creativeStaff = USERS.filter(u => u.role === 'member' || u.role === 'leader');
+      select.innerHTML = creativeStaff.map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');
+      if (prev && Array.from(select.options).some(o => o.value === prev)) select.value = prev;
+    }
+
+    function populateFocusTaskSelect() {
+      if (!currentUser) return;
+      const select = document.getElementById('focusTaskSelect');
+      const prev = select.value;
+      const activeTasks = tasks.filter(t => t.status === 'pending' && (currentUser.role === 'leader' || t.assigneeId === currentUser.id));
+      select.innerHTML = activeTasks.length
+        ? activeTasks.map(t => `<option value="${esc(t.id)}">[${esc(t.category)}] ${esc(t.title)}</option>`).join('')
+        : `<option value="">Semua tugas aktif sudah selesai 🎉</option>`;
+      if (prev && Array.from(select.options).some(o => o.value === prev)) select.value = prev;
+    }
+
+    function setFreqFilter(freq) {
+      freqFilter = freq;
+      document.querySelectorAll('.freq-btn').forEach(btn => {
+        const active = btn.dataset.freq === freq;
+        btn.className = `freq-btn px-3 py-1.5 rounded-xl text-xs ${active ? 'font-bold bg-slate-900 text-white' : 'font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200'}`;
+      });
+      renderTasks();
+    }
+
+    function renderTasks() {
+      const container = document.getElementById('taskListContainer');
+      const catFilter = document.getElementById('filterCategorySelect').value;
+      const subFilter = document.getElementById('filterSubCategorySelect').value;
+
+      let filtered = tasks.filter(t => {
+        // Anggota hanya melihat tugas miliknya sendiri; Leader melihat semua tugas tim & tugas pribadinya
+        if (currentUser.role === 'member' && t.assigneeId !== currentUser.id) return false;
+        if (freqFilter !== 'all' && t.frequency !== freqFilter) return false;
+        if (catFilter !== 'all' && t.category !== catFilter) return false;
+        if (subFilter !== 'all' && t.subCategory !== subFilter) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+            <p class="text-sm font-semibold text-slate-600">Tidak ada tugas pada filter ini.</p>
+            <p class="text-xs text-slate-400 mt-1">Ubah filter kategori/waktu atau buat tugas baru.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(t => {
+        const isDone = t.status === 'completed';
+        return `
+          <div class="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border transition ${isDone ? 'bg-slate-50/70 border-slate-200/60 opacity-80' : 'bg-white border-slate-200 hover:border-indigo-300 shadow-sm'}">
+            <div class="flex items-start gap-3.5">
+              <!-- Checkbox Checklist Tugas -->
+              <button data-id="${esc(t.id)}" onclick="toggleTaskComplete(this.dataset.id)" class="mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition shrink-0 ${isDone ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-indigo-600 bg-white'}">
+                ${isDone ? '<i data-lucide="check" class="w-4 h-4"></i>' : ''}
+              </button>
+
+              <div>
+                <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                  <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">${esc(t.category)} &bull; ${esc(t.subCategory)}</span>
+                  <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">${esc(t.frequency)}</span>
+                  <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700">+${t.points} Poin KPI</span>
+                  ${t.urgentTag && !isDone ? `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 flex items-center gap-1"><i data-lucide="bell-ring" class="w-3 h-3"></i> Reminder Leader</span>` : ''}
+                </div>
+
+                <h4 class="text-sm font-bold ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}">${esc(t.title)}</h4>
+
+                <div class="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500">
+                  <span class="flex items-center gap-1 font-medium text-slate-700">
+                    <i data-lucide="user" class="w-3.5 h-3.5 text-indigo-500"></i> ${esc(t.assigneeName)}
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <i data-lucide="clock" class="w-3.5 h-3.5"></i> Fokus: <strong>${t.actualMinutes || 0}m</strong> / Est. ${t.estMinutes}m
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i> DL: ${esc(t.deadline)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tombol Aksi Cepat (Tag Reminder untuk Leader) -->
+            <div class="flex items-center gap-2 self-end sm:self-center">
+              ${currentUser.role === 'leader' && !isDone ? `
+                <button data-id="${esc(t.id)}" onclick="sendDeadlineReminder(this.dataset.id)" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1 transition" title="Kirim pengingat deadline ke anggota">
+                  <i data-lucide="at-sign" class="w-3.5 h-3.5"></i>
+                  <span>Tag Deadline</span>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    async function toggleTaskComplete(taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task || pendingTaskOps.has(taskId)) return;
+      pendingTaskOps.add(taskId);
+
+      const prev = { status: task.status, actualMinutes: task.actualMinutes };
+      const prevDrops = waterDrops;
+      const user = userPayload();
+
+      try {
+        if (task.status === 'pending') {
+          task.status = 'completed';
+          if (!task.actualMinutes || task.actualMinutes === 0) {
+            task.actualMinutes = task.estMinutes; // Otomatis catat estimasi jika belum pakai timer
+          }
+          const addedMinutes = Math.max(0, task.actualMinutes - prev.actualMinutes);
+          const dropBonus = task.frequency === 'Bulanan' ? 5 : task.frequency === 'Mingguan' ? 2 : 1;
+          waterDrops += dropBonus;
+
+          const detail = `Menyelesaikan "${task.title}" (+${task.points} Poin KPI, +${dropBonus}💧)`;
+          addActivityLog(currentUser.name, currentUser.role, 'Checklist Selesai', detail, addedMinutes);
+          showToast(`Tugas selesai! +${task.points} Poin KPI & +${dropBonus}💧 untuk Pohon Tim!`, 'success');
+          triggerWaterAnimation();
+          renderAll();
+
+          await apiPost({ action: 'COMPLETE_TASK', taskId, actualMinutes: task.actualMinutes, detail, user });
+          syncTree();
+        } else {
+          task.status = 'pending';
+          waterDrops = Math.max(0, waterDrops - 1);
+          const detail = `Membuka kembali tugas "${task.title}"`;
+          addActivityLog(currentUser.name, currentUser.role, 'Batal Checklist', detail, 0);
+          renderAll();
+
+          await apiPost({ action: 'REOPEN_TASK', taskId, detail, user });
+          syncTree();
+        }
+      } catch (err) {
+        // Kembalikan tampilan seperti semula jika server menolak / gagal
+        task.status = prev.status;
+        task.actualMinutes = prev.actualMinutes;
+        waterDrops = prevDrops;
+        showToast('Gagal menyimpan perubahan tugas: ' + err.message, 'error');
+        renderAll();
+        await refreshData(false);
+      } finally {
+        pendingTaskOps.delete(taskId);
+      }
+    }
+
+    function sendDeadlineReminder(taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+      task.urgentTag = true;
+      urgentTagged.add(taskId);
+      addActivityLog(currentUser.name, currentUser.role, 'Tag Deadline', `Mengingatkan ${task.assigneeName} untuk tugas "${task.title}"`, 0, true);
+      showToast(`Pengingat deadline dikirim ke ${task.assigneeName}!`, 'info');
+      renderTasks();
+    }
+
+    async function handleCreateTask(e) {
+      e.preventDefault();
+      const form = e.target;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const assignee = USERS.find(u => u.id === document.getElementById('newTaskAssignee').value);
+      if (!assignee) {
+        showToast('Pilih penerima tugas terlebih dahulu.', 'error');
+        return;
+      }
+
+      const newTask = {
+        id: 'T-' + Date.now(),
+        title: document.getElementById('newTaskTitle').value.trim(),
+        category: document.getElementById('newTaskCategory').value,
+        subCategory: document.getElementById('newTaskSubCategory').value,
+        frequency: document.getElementById('newTaskFrequency').value,
+        assigneeId: assignee.id,
+        assigneeName: assignee.name,
+        points: parseInt(document.getElementById('newTaskPoints').value, 10),
+        estMinutes: parseInt(document.getElementById('newTaskMinutes').value, 10),
+        actualMinutes: 0,
+        deadline: document.getElementById('newTaskDeadline').value,
+        status: 'pending',
+        urgentTag: true
+      };
+
+      if (submitBtn) submitBtn.disabled = true;
+      try {
+        await apiPost({
+          action: 'ADD_TASK',
+          user: userPayload(),
+          task: {
+            id: newTask.id, title: newTask.title, category: newTask.category, subCategory: newTask.subCategory,
+            frequency: newTask.frequency, assigneeId: newTask.assigneeId, assigneeName: newTask.assigneeName,
+            points: newTask.points, estMinutes: newTask.estMinutes, deadline: newTask.deadline,
+            createdBy: currentUser.id
+          }
+        });
+      } catch (err) {
+        showToast('Gagal membuat tugas: ' + err.message, 'error');
+        return;
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+
+      urgentTagged.add(newTask.id);
+      tasks.unshift(newTask);
+      addActivityLog(currentUser.name, currentUser.role, 'Buat Tugas Baru', `Menugaskan "${newTask.title}" kepada ${assignee.name}`, 0);
+      closeModal('modalAddTask');
+      form.reset();
+      setDefaultTaskDeadline();
+      showToast(`Tugas berhasil dibuat dan ditag ke ${assignee.name}!`, 'success');
+      renderAll();
+    }
+
+    function updateLoginUserDropdown() {
+      const select = document.getElementById('loginUserSelect');
+      if (!select) return;
+      select.innerHTML = '';
+      USERS.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.id;
+        opt.textContent = `${u.name} — [${u.role.toUpperCase()}]`;
+        select.appendChild(opt);
+      });
+    }
+
+    async function handleAddMember(e) {
+      e.preventDefault();
+      const form = e.target;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const name = document.getElementById('newMemberName').value.trim();
+      const role = document.getElementById('newMemberRole').value;
+      const pin = document.getElementById('newMemberPin').value.trim();
+      const division = document.getElementById('newMemberDivision').value.trim();
+
+      if (!name || !pin) return;
+      if (!/^\d{4,6}$/.test(pin)) {
+        showToast('PIN harus berupa 4-6 digit angka.', 'error');
+        return;
+      }
+
+      // ID berikutnya = angka terbesar yang sudah ada + 1 (aman walau ada anggota yang dihapus manual di Sheets)
+      const maxNum = USERS.reduce((m, u) => {
+        const n = parseInt(String(u.id).replace(/\D/g, ''), 10);
+        return isNaN(n) ? m : Math.max(m, n);
+      }, 0);
+      const newId = 'U' + String(maxNum + 1).padStart(2, '0');
+      const newUser = { id: newId, name, role, division, targetMinutes: role === 'hr' ? 0 : 120 };
+      if (!IS_ONLINE) newUser.pin = pin; // PIN hanya disimpan di memori pada mode demo
+
+      if (submitBtn) submitBtn.disabled = true;
+      try {
+        await apiPost({ action: 'ADD_MEMBER', user: userPayload(), member: { id: newId, name, role, pin, division } });
+      } catch (err) {
+        showToast('Gagal menambah anggota: ' + err.message, 'error');
+        return;
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+
+      USERS.push(newUser);
+      updateLoginUserDropdown();
+      populateAssigneeDropdown();
+
+      addActivityLog(currentUser.name, currentUser.role, 'Tambah Anggota Baru', `Menambahkan ${name} (${role.toUpperCase()}) ke dalam tim`, 0);
+      closeModal('modalAddMember');
+      form.reset();
+
+      showToast(`Anggota baru "${name}" berhasil ditambahkan dengan ID ${newId}!`, 'success');
+      renderAll();
+    }
+
+    async function handleAddCategory(e) {
+      e.preventDefault();
+      const form = e.target;
+      const name = document.getElementById('customCatName').value.trim();
+      const subs = document.getElementById('customSubCatList').value.split(',').map(x => x.trim()).filter(Boolean);
+      if (!name || !subs.length) return;
+
+      try {
+        await apiPost({ action: 'ADD_CATEGORY', user: userPayload(), name, subs });
+      } catch (err) {
+        showToast('Gagal menambah kategori: ' + err.message, 'error');
+        return;
+      }
+
+      categories.push({ name, subs });
+      populateCategoryDropdowns();
+      addActivityLog(currentUser.name, currentUser.role, 'Tambah Kategori', `Menambahkan kategori "${name}"`, 0);
+      closeModal('modalAddCategory');
+      form.reset();
+      showToast(`Kategori "${name}" berhasil ditambahkan!`, 'success');
+    }
+
+    async function handleSendAspiration(e) {
+      e.preventDefault();
+      const form = e.target;
+      const topic = document.getElementById('aspirationTopic').value;
+      const msg = document.getElementById('aspirationText').value.trim();
+      if (!msg) return;
+
+      // Sengaja TIDAK mengirim data user agar 100% anonim
+      try {
+        await apiPost({ action: 'ADD_ASPIRATION', category: topic, message: msg });
+      } catch (err) {
+        showToast('Gagal mengirim aspirasi: ' + err.message, 'error');
+        return;
+      }
+
+      aspirations.unshift({ id: 'ASP-' + Date.now(), time: 'Baru saja', topic: topic, message: msg });
+      closeModal('modalAspiration');
+      form.reset();
+      showToast('Aspirasi anonim terkirim ke Leader. Identitas Anda aman!', 'success');
+      renderAspirations();
+    }
+
+    // -----------------------------------------------------------------------
+    // 7. KALENDER KERJA DIVISI KREATIF (NOVEMBER 2026)
+    // -----------------------------------------------------------------------
+    function renderCalendar() {
+      const grid = document.getElementById('calendarGrid');
+      const nowDate = new Date();
+      const calYear = nowDate.getFullYear();
+      const calMonth = nowDate.getMonth();
+      const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+      const firstWeekday = new Date(calYear, calMonth, 1).getDay();
+      const monthLabel = document.getElementById('calendarMonthLabel');
+      if (monthLabel) monthLabel.textContent = nowDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+      // 1 Nov 2026 jatuh pada hari Minggu (index 0), total 30 hari
+      let cells = '<div></div>'.repeat(firstWeekday);
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${calYear}-${pad2(calMonth + 1)}-${pad2(day)}`;
+        const dayTasks = tasks.filter(t => t.deadline === dateStr);
+        const isToday = day === nowDate.getDate();
+
+        cells += `
+          <div class="min-h-[85px] sm:min-h-[100px] rounded-2xl border p-2 flex flex-col justify-between transition ${isToday ? 'bg-indigo-50/60 border-indigo-400 ring-1 ring-indigo-300' : 'bg-slate-50/50 border-slate-200/70'}">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold ${isToday ? 'text-indigo-700' : 'text-slate-600'}">${day}</span>
+              ${isToday ? '<span class="text-[9px] font-bold bg-indigo-600 text-white px-1.5 py-0.5 rounded">Hari Ini</span>' : ''}
+            </div>
+            <div class="space-y-1 mt-1 overflow-y-auto max-h-16">
+              ${dayTasks.map(dt => `
+                <div class="text-[10px] leading-tight px-1.5 py-1 rounded-md font-semibold truncate ${dt.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'}" title="${esc(dt.title)} (${dt.assigneeName})">
+                  ${esc(dt.title)}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      grid.innerHTML = cells;
+    }
+
+    // -----------------------------------------------------------------------
+    // 8. PANEL LEADER: PERHITUNGAN KPI ADIL & KOTAK ASPIRASI
+    // -----------------------------------------------------------------------
+    function calculateFairKPIForUser(userId) {
+      const userTasks = tasks.filter(t => t.assigneeId === userId);
+      const totalAssignedPoints = userTasks.reduce((s, t) => s + t.points, 0);
+      const earnedPoints = userTasks.filter(t => t.status === 'completed').reduce((s, t) => s + t.points, 0);
+      const completedTasks = userTasks.filter(t => t.status === 'completed').length;
+      const totalFocusMinutes = userTasks.reduce((s, t) => s + (t.actualMinutes || 0), 0);
+
+      // Formula Adil: 70% rasio penyelesaian poin tugas + 30% skor disiplin fokus (maksimal optimal 120m)
+      const completionRatio = totalAssignedPoints > 0 ? (earnedPoints / totalAssignedPoints) : 1;
+      const focusDiscipline = totalFocusMinutes > 0 ? Math.min(1, totalFocusMinutes / 60) : 0.5;
+      const fairScore = Math.round((completionRatio * 70) + (focusDiscipline * 30));
+
+      return {
+        totalTasks: userTasks.length,
+        completedTasks,
+        earnedPoints,
+        totalAssignedPoints,
+        totalFocusMinutes,
+        fairScore
+      };
+    }
+
+    function renderLeaderKPI() {
+      const tbody = document.getElementById('leaderKpiTableBody');
+      const members = USERS.filter(u => u.role === 'member' || u.role === 'leader');
+
+      tbody.innerHTML = members.map(m => {
+        const kpi = calculateFairKPIForUser(m.id);
+        let badge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Sangat Baik</span>`;
+        if (kpi.fairScore < 60) badge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700">Perlu Pendampingan</span>`;
+        else if (kpi.fairScore < 80) badge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Baik</span>`;
+
+        return `
+          <tr class="hover:bg-slate-50/80">
+            <td class="py-3.5 px-2">
+              <p class="font-bold text-slate-900">${esc(m.name)}</p>
+              <p class="text-[11px] text-slate-400">${esc(m.division)}</p>
+            </td>
+            <td class="py-3.5 px-2 font-semibold text-slate-700">${kpi.completedTasks} / ${kpi.totalTasks} Tugas</td>
+            <td class="py-3.5 px-2 font-bold text-indigo-600">${kpi.earnedPoints} / ${kpi.totalAssignedPoints} pts</td>
+            <td class="py-3.5 px-2 text-slate-600">${kpi.totalFocusMinutes} Menit</td>
+            <td class="py-3.5 px-2">
+              <span class="text-base font-extrabold text-slate-900">${kpi.fairScore}%</span>
+            </td>
+            <td class="py-3.5 px-2">${badge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderAspirations() {
+      const container = document.getElementById('aspirationListContainer');
+      container.innerHTML = aspirations.map(a => `
+        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+          <div class="flex items-center justify-between text-[11px] mb-1.5">
+            <span class="font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">${esc(a.topic)}</span>
+            <span class="text-slate-400">${esc(a.time)}</span>
+          </div>
+          <p class="text-xs text-slate-700 leading-relaxed">"${esc(a.message)}"</p>
+        </div>
+      `).join('');
+    }
+
+    // -----------------------------------------------------------------------
+    // 9. DASHBOARD HR: EVALUASI PERFORMA & DETEKSI OVERLOAD (>25% JAM KERJA)
+    // -----------------------------------------------------------------------
+    function renderHRDashboard() {
+      const tbody = document.getElementById('hrWorkloadTableBody');
+      const creativeStaff = USERS.filter(u => u.role === 'member');
+      const totalWorkMinutesPerDay = 480; // 8 Jam kerja standar
+
+      let sumRatio = 0;
+      let overloadCount = 0;
+
+      tbody.innerHTML = creativeStaff.map(staff => {
+        const creativeMins = workedMinutesToday(staff.id);
+
+        const csMins = Math.max(0, totalWorkMinutesPerDay - creativeMins);
+        const ratioPct = ((creativeMins / totalWorkMinutesPerDay) * 100).toFixed(1);
+        sumRatio += parseFloat(ratioPct);
+
+        let statusBadge = '';
+        let recommendation = '';
+
+        if (creativeMins > 120) {
+          overloadCount++;
+          statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700">OVERLOAD (&gt;25%)</span>`;
+          recommendation = 'Kurangi porsi desain harian atau redistribusi tugas ke anggota lain agar SLA CS tidak turun.';
+        } else if (creativeMins < 30) {
+          statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Under-utilized</span>`;
+          recommendation = 'Masih memiliki ruang kapasitas kreatif aman hingga 120 menit/hari.';
+        } else {
+          statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Optimal (≤25%)</span>`;
+          recommendation = 'Proporsi kerja CS & Kreatif seimbang dan sehat.';
+        }
+
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3.5 px-3 font-bold text-slate-900">${esc(staff.name)}</td>
+            <td class="py-3.5 px-3 text-slate-600">${csMins} Menit (${(100 - ratioPct).toFixed(1)}%)</td>
+            <td class="py-3.5 px-3 font-bold text-indigo-700">${creativeMins} Menit</td>
+            <td class="py-3.5 px-3">
+              <div class="flex items-center gap-2">
+                <div class="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div class="h-full ${creativeMins > 120 ? 'bg-rose-500' : 'bg-emerald-500'}" style="width: ${Math.min(100, (ratioPct / 25) * 100)}%"></div>
+                </div>
+                <span class="text-xs font-extrabold ${creativeMins > 120 ? 'text-rose-600' : 'text-slate-800'}">${ratioPct}%</span>
+              </div>
+            </td>
+            <td class="py-3.5 px-3">${statusBadge}</td>
+            <td class="py-3.5 px-3 text-xs text-slate-600 max-w-xs">${recommendation}</td>
+          </tr>
+        `;
+      }).join('');
+
+      const avgRatio = creativeStaff.length ? (sumRatio / creativeStaff.length).toFixed(1) : '0.0';
+      const completedAll = tasks.filter(t => t.status === 'completed').length;
+      const compRate = tasks.length ? Math.round((completedAll / tasks.length) * 100) : 0;
+
+      document.getElementById('hrAvgRatio').textContent = `${avgRatio}%`;
+      document.getElementById('hrOverloadCount').textContent = `${overloadCount} Orang`;
+      document.getElementById('hrCompletionRate').textContent = `${compRate}%`;
+      document.getElementById('hrDivisionHealth').textContent = overloadCount > 0 ? 'Perlu Penyesuaian' : 'Optimal & Sehat';
+      document.getElementById('hrDivisionHealth').className = `text-2xl font-extrabold mt-1 ${overloadCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`;
+    }
+
+    // -----------------------------------------------------------------------
+    // 10. REKAM AKTIVITAS TIM & UTILITAS MODAL / TOAST / EXPORT
+    // -----------------------------------------------------------------------
+    function addActivityLog(user, role, action, detail, minutes, persist) {
+      const now = new Date();
+      const timeStr = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+      activityLogs.unshift({
+        ts: now.toISOString(),
+        time: timeStr,
+        uid: currentUser ? currentUser.id : '',
+        user, role, action, detail, minutes
+      });
+      renderLogs();
+
+      // Hanya log yang TIDAK otomatis dicatat server yang dikirim lewat LOG_ACTIVITY
+      if (persist && IS_ONLINE && currentUser) {
+        apiPost({ action: 'LOG_ACTIVITY', user: userPayload(), actionType: action, detail, minutes })
+          .catch(err => console.warn('Gagal mencatat log:', err));
+      }
+    }
+
+    function renderLogs() {
+      const feed = document.getElementById('activityLogFeed');
+      if (!feed) return;
+
+      const visibleLogs = currentUser && currentUser.role === 'member'
+        ? activityLogs.filter(l => l.uid ? l.uid === currentUser.id : l.user === currentUser.name)
+        : activityLogs;
+
+      document.getElementById('totalLogBadge').textContent = `${visibleLogs.length} Rekaman`;
+
+      feed.innerHTML = visibleLogs.map(l => `
+        <div class="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
+          <div class="flex items-start gap-3">
+            <span class="font-mono font-bold text-slate-400 mt-0.5">${esc(l.time)}</span>
+            <div>
+              <p class="font-bold text-slate-800">${esc(l.user)} <span class="font-semibold text-indigo-600">&bull; ${esc(l.action)}</span></p>
+              <p class="text-slate-600 mt-0.5">${esc(l.detail)}</p>
+            </div>
+          </div>
+          ${l.minutes > 0 ? `<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 font-bold shrink-0">+${l.minutes}m</span>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function exportReportCSV() {
+      let csv = 'Nama Anggota,Tugas Selesai,Total Tugas,Poin KPI,Durasi Kreatif (Menit),Skor KPI Adil (%)\n';
+      USERS.filter(u => u.role !== 'hr').forEach(u => {
+        const k = calculateFairKPIForUser(u.id);
+        csv += `"${u.name}",${k.completedTasks},${k.totalTasks},${k.earnedPoints},${k.totalFocusMinutes},${k.fairScore}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Laporan_KPI_Divisi_Kreatif.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Laporan KPI berhasil diunduh dalam format CSV!', 'success');
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const colors = type === 'success' ? 'bg-emerald-600 text-white' :
+                     type === 'error' ? 'bg-rose-600 text-white' :
+                     'bg-slate-900 text-white';
+
+      toast.className = `${colors} px-4 py-3 rounded-2xl shadow-lg text-xs font-semibold flex items-center justify-between gap-3 pointer-events-auto transition-all`;
+      const msgEl = document.createElement('span');
+      msgEl.textContent = message;
+      toast.appendChild(msgEl);
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+  </script>
+</body>
+</html>
