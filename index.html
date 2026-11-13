@@ -503,7 +503,8 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">Tag / Tugaskan Kepada</label>
-            <select id="newTaskAssignee" class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-slate-50"></select>
+            <div id="newTaskAssigneeList" class="rounded-xl border border-slate-200 bg-slate-50 p-1.5 max-h-44 overflow-y-auto space-y-0.5"></div>
+            <p class="text-[11px] text-slate-400 mt-1 leading-snug">Pilih 1 orang = tugas pribadi. Pilih &gt;1 orang atau &quot;Semua Anggota&quot; = tugas bersama: siapa cepat menyelesaikan mendapat poin KPI, status selesai untuk semua.</p>
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Jadwal</label>
@@ -802,7 +803,7 @@
     // >>> TEMPEL URL WEB APP (hasil Deploy Apps Script, berakhiran /exec) DI BAWAH INI <<<
     // Selama masih berisi teks PASTE_..., aplikasi berjalan dalam MODE DEMO
     // (data hanya di memori browser dan hilang saat halaman dimuat ulang).
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxemALKyrCEhKUOOairHybsQHDgc0p9f9cBJ9bC28EoXqkooEHBes_lSiq0c1luyqJINA/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxmkUJ8my_DO4ofF754AtQWSZ8qMOzw3NCYR5sq22I1T9edw9nzcKX2PbUmBmHxNy6eDQ/exec';
     const IS_ONLINE = /^https:\/\/script\.google\.com\/.+\/exec/.test(API_URL.trim());
     const POLL_INTERVAL_MS = 45000; // sinkronisasi otomatis tiap 45 detik saat login
 
@@ -829,6 +830,31 @@
       return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, c => (
         { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
       ));
+    }
+
+    // ---- Tugas bersama / berlomba ----
+    // assigneeIds: ['U02'] = pribadi | ['U02','U03'] = bersama | ['ALL'] = semua anggota (role member)
+    function normalizeTask(t) {
+      if (!Array.isArray(t.assigneeIds)) {
+        t.assigneeIds = t.assigneeId ? String(t.assigneeId).split(',').map(x => x.trim()).filter(Boolean) : [];
+      }
+      if (t.status === 'completed' && !t.completedById && t.assigneeIds.length === 1 && t.assigneeIds[0] !== 'ALL') {
+        t.completedById = t.assigneeIds[0];      // data lama: penyelesai = penerima tunggal
+        t.completedByName = t.assigneeName;
+      }
+      t.completedById = t.completedById || '';
+      t.completedByName = t.completedByName || '';
+      return t;
+    }
+
+    function taskIsShared(t) {
+      return t.assigneeIds.indexOf('ALL') !== -1 || t.assigneeIds.length > 1;
+    }
+
+    function taskEligible(t, user) {
+      if (!user) return false;
+      if (t.assigneeIds.indexOf('ALL') !== -1) return user.role === 'member';
+      return t.assigneeIds.indexOf(user.id) !== -1;
     }
 
     function pad2(n) { return String(n).padStart(2, '0'); }
@@ -930,13 +956,16 @@
       const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = `${tomorrow.getFullYear()}-${pad2(tomorrow.getMonth() + 1)}-${pad2(tomorrow.getDate())}`;
       const id = String(r.TaskID);
-      return {
+      return normalizeTask({
         id,
         title: String(r.Judul),
         category: String(r.Kategori),
         subCategory: String(r.SubKategori),
         frequency: String(r.Frekuensi),
         assigneeId: String(r.AssigneeID),
+        assigneeIds: String(r.AssigneeID).split(',').map(x => x.trim()).filter(Boolean),
+        completedById: String(r.CompletedBy || ''),
+        completedByName: String(r.CompletedByNama || ''),
         assigneeName: String(r.AssigneeNama),
         points: Number(r.PoinKPI) || 0,
         estMinutes: Number(r.EstimasiMenit) || 0,
@@ -944,7 +973,7 @@
         deadline,
         status,
         urgentTag: status !== 'completed' && ((deadline && deadline <= tomorrowStr) || urgentTagged.has(id))
-      };
+      });
     }
 
     function mapCategory(r) {
@@ -1033,7 +1062,7 @@
     // Mode demo: memakai akumulasi menit tugas (data contoh).
     function workedMinutesToday(userId) {
       if (!IS_ONLINE) {
-        return tasks.filter(t => t.assigneeId === userId).reduce((sum, t) => sum + (t.actualMinutes || 0), 0);
+        return tasks.filter(t => t.assigneeIds.indexOf(userId) !== -1).reduce((sum, t) => sum + (t.actualMinutes || 0), 0);
       }
       return activityLogs
         .filter(l => l.uid === userId && isSameLocalDay(l.ts) &&
@@ -1079,6 +1108,8 @@
         console.warn('Gagal menyimpan pohon tim:', err);
       }
     }
+
+    tasks.forEach(normalizeTask); // data contoh (mode demo)
 
     // -----------------------------------------------------------------------
     // 2. INISIALISASI HALAMAN LOGIN
@@ -1533,18 +1564,43 @@
     }
 
     function populateAssigneeDropdown() {
-      const select = document.getElementById('newTaskAssignee');
-      const prev = select.value;
-      const creativeStaff = USERS.filter(u => u.role === 'member' || u.role === 'leader');
-      select.innerHTML = creativeStaff.map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');
-      if (prev && Array.from(select.options).some(o => o.value === prev)) select.value = prev;
+      const box = document.getElementById('newTaskAssigneeList');
+      if (!box) return;
+      const checked = new Set(Array.from(box.querySelectorAll('input:checked')).map(i => i.value));
+      const people = USERS.filter(u => u.role === 'member' || u.role === 'leader');
+      const row = (value, label, cls) => `
+        <label class="flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg hover:bg-white cursor-pointer">
+          <input type="checkbox" value="${esc(value)}" class="rounded border-slate-300 text-indigo-600" onchange="onAssigneeToggle(this)" ${checked.has(value) ? 'checked' : ''}>
+          <span class="${cls || 'text-slate-700'}">${esc(label)}</span>
+        </label>`;
+      box.innerHTML = row('ALL', 'Semua Anggota (berlomba)', 'font-bold text-indigo-700') +
+        people.map(u => row(u.id, u.name + (u.role === 'leader' ? ' (Leader)' : ''))).join('');
+      syncAssigneeDisabled();
+    }
+
+    function onAssigneeToggle(el) {
+      const box = document.getElementById('newTaskAssigneeList');
+      if (el.value === 'ALL' && el.checked) {
+        box.querySelectorAll('input').forEach(i => { if (i.value !== 'ALL') i.checked = false; });
+      }
+      syncAssigneeDisabled();
+    }
+
+    function syncAssigneeDisabled() {
+      const box = document.getElementById('newTaskAssigneeList');
+      const all = box.querySelector('input[value="ALL"]');
+      box.querySelectorAll('input').forEach(i => { if (i.value !== 'ALL') i.disabled = !!(all && all.checked); });
+    }
+
+    function clearAssigneeSelection() {
+      document.querySelectorAll('#newTaskAssigneeList input').forEach(i => { i.checked = false; i.disabled = false; });
     }
 
     function populateFocusTaskSelect() {
       if (!currentUser) return;
       const select = document.getElementById('focusTaskSelect');
       const prev = select.value;
-      const activeTasks = tasks.filter(t => t.status === 'pending' && (currentUser.role === 'leader' || t.assigneeId === currentUser.id));
+      const activeTasks = tasks.filter(t => t.status === 'pending' && (currentUser.role === 'leader' || taskEligible(t, currentUser)));
       select.innerHTML = activeTasks.length
         ? activeTasks.map(t => `<option value="${esc(t.id)}">[${esc(t.category)}] ${esc(t.title)}</option>`).join('')
         : `<option value="">Semua tugas aktif sudah selesai 🎉</option>`;
@@ -1566,8 +1622,8 @@
       const subFilter = document.getElementById('filterSubCategorySelect').value;
 
       let filtered = tasks.filter(t => {
-        // Anggota hanya melihat tugas miliknya sendiri; Leader melihat semua tugas tim & tugas pribadinya
-        if (currentUser.role === 'member' && t.assigneeId !== currentUser.id) return false;
+        // Anggota melihat tugas pribadinya + tugas bersama/semua anggota; Leader melihat semua tugas tim
+        if (currentUser.role === 'member' && !taskEligible(t, currentUser)) return false;
         if (freqFilter !== 'all' && t.frequency !== freqFilter) return false;
         if (catFilter !== 'all' && t.category !== catFilter) return false;
         if (subFilter !== 'all' && t.subCategory !== subFilter) return false;
@@ -1586,11 +1642,17 @@
 
       container.innerHTML = filtered.map(t => {
         const isDone = t.status === 'completed';
+        const shared = taskIsShared(t);
+        const mine = taskEligible(t, currentUser);
+        const lockedByOther = isDone && currentUser.role !== 'leader' && t.completedById && t.completedById !== currentUser.id;
+        const notMyShared = !isDone && shared && !mine;
+        const lockCls = (lockedByOther || notMyShared) ? 'opacity-50 cursor-not-allowed' : '';
+        const lockHint = lockedByOther ? 'Sudah diselesaikan oleh ' + t.completedByName : (notMyShared ? 'Tugas bersama hanya bisa diselesaikan anggota yang ditugaskan' : '');
         return `
           <div class="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border transition ${isDone ? 'bg-slate-50/70 border-slate-200/60 opacity-80' : 'bg-white border-slate-200 hover:border-indigo-300 shadow-sm'}">
             <div class="flex items-start gap-3.5">
               <!-- Checkbox Checklist Tugas -->
-              <button data-id="${esc(t.id)}" onclick="toggleTaskComplete(this.dataset.id)" class="mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition shrink-0 ${isDone ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-indigo-600 bg-white'}">
+              <button data-id="${esc(t.id)}" onclick="toggleTaskComplete(this.dataset.id)" title="${esc(lockHint)}" class="mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition shrink-0 ${lockCls} ${isDone ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-indigo-600 bg-white'}">
                 ${isDone ? '<i data-lucide="check" class="w-4 h-4"></i>' : ''}
               </button>
 
@@ -1598,6 +1660,7 @@
                 <div class="flex flex-wrap items-center gap-1.5 mb-1">
                   <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">${esc(t.category)} &bull; ${esc(t.subCategory)}</span>
                   <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">${esc(t.frequency)}</span>
+                  ${shared ? `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-violet-100 text-violet-700">🏁 Tugas Bersama</span>` : ''}
                   <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700">+${t.points} Poin KPI</span>
                   ${t.urgentTag && !isDone ? `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 flex items-center gap-1"><i data-lucide="bell-ring" class="w-3 h-3"></i> Reminder Leader</span>` : ''}
                 </div>
@@ -1608,6 +1671,7 @@
                   <span class="flex items-center gap-1 font-medium text-slate-700">
                     <i data-lucide="user" class="w-3.5 h-3.5 text-indigo-500"></i> ${esc(t.assigneeName)}
                   </span>
+                  ${isDone && t.completedByName ? `<span class="flex items-center gap-1 font-semibold text-emerald-700"><i data-lucide="award" class="w-3.5 h-3.5"></i> Diselesaikan oleh ${esc(t.completedByName)}</span>` : ''}
                   <span class="flex items-center gap-1">
                     <i data-lucide="clock" class="w-3.5 h-3.5"></i> Fokus: <strong>${t.actualMinutes || 0}m</strong> / Est. ${t.estMinutes}m
                   </span>
@@ -1637,15 +1701,37 @@
     async function toggleTaskComplete(taskId) {
       const task = tasks.find(t => t.id === taskId);
       if (!task || pendingTaskOps.has(taskId)) return;
-      pendingTaskOps.add(taskId);
 
-      const prev = { status: task.status, actualMinutes: task.actualMinutes };
+      const me = currentUser;
+      const shared = taskIsShared(task);
+      const eligible = taskEligible(task, me);
+
+      if (task.status === 'pending') {
+        // Tugas bersama hanya untuk penerima; Leader boleh menandai tugas pribadi anggota (poin tetap ke penerima)
+        if (!eligible && !(me.role === 'leader' && !shared)) {
+          showToast('Tugas bersama hanya bisa diselesaikan oleh anggota yang ditugaskan.', 'info');
+          return;
+        }
+      } else if (me.role !== 'leader' && task.completedById && task.completedById !== me.id) {
+        showToast(`Tugas ini diselesaikan oleh ${task.completedByName}. Hanya dia atau Leader yang bisa membukanya kembali.`, 'info');
+        return;
+      }
+
+      pendingTaskOps.add(taskId);
+      const prev = { status: task.status, actualMinutes: task.actualMinutes, completedById: task.completedById, completedByName: task.completedByName };
       const prevDrops = waterDrops;
       const user = userPayload();
 
       try {
         if (task.status === 'pending') {
           task.status = 'completed';
+          if (eligible) {
+            task.completedById = me.id;
+            task.completedByName = me.name;
+          } else {
+            task.completedById = task.assigneeIds[0];
+            task.completedByName = task.assigneeName;
+          }
           if (!task.actualMinutes || task.actualMinutes === 0) {
             task.actualMinutes = task.estMinutes; // Otomatis catat estimasi jika belum pakai timer
           }
@@ -1653,30 +1739,37 @@
           const dropBonus = task.frequency === 'Bulanan' ? 5 : task.frequency === 'Mingguan' ? 2 : 1;
           waterDrops += dropBonus;
 
-          const detail = `Menyelesaikan "${task.title}" (+${task.points} Poin KPI, +${dropBonus}💧)`;
-          addActivityLog(currentUser.name, currentUser.role, 'Checklist Selesai', detail, addedMinutes);
-          showToast(`Tugas selesai! +${task.points} Poin KPI & +${dropBonus}💧 untuk Pohon Tim!`, 'success');
+          const detail = `Menyelesaikan "${task.title}" (+${task.points} Poin KPI untuk ${task.completedByName}, +${dropBonus}💧)`;
+          addActivityLog(me.name, me.role, 'Checklist Selesai', detail, addedMinutes);
+          showToast(shared
+            ? `Kamu menang! +${task.points} Poin KPI untukmu, tugas selesai untuk semua penerima. +${dropBonus}💧`
+            : `Tugas selesai! +${task.points} Poin KPI untuk ${task.completedByName} & +${dropBonus}💧 untuk Pohon Tim!`, 'success');
           triggerWaterAnimation();
           renderAll();
 
-          await apiPost({ action: 'COMPLETE_TASK', taskId, actualMinutes: task.actualMinutes, detail, user });
+          const res = await apiPost({ action: 'COMPLETE_TASK', taskId, actualMinutes: task.actualMinutes, detail, user });
+          if (res.completedBy) { task.completedById = res.completedBy; task.completedByName = res.completedByName || task.completedByName; }
           syncTree();
         } else {
           task.status = 'pending';
+          task.completedById = '';
+          task.completedByName = '';
           waterDrops = Math.max(0, waterDrops - 1);
           const detail = `Membuka kembali tugas "${task.title}"`;
-          addActivityLog(currentUser.name, currentUser.role, 'Batal Checklist', detail, 0);
+          addActivityLog(me.name, me.role, 'Batal Checklist', detail, 0);
           renderAll();
 
           await apiPost({ action: 'REOPEN_TASK', taskId, detail, user });
           syncTree();
         }
       } catch (err) {
-        // Kembalikan tampilan seperti semula jika server menolak / gagal
+        // Kembalikan tampilan seperti semula jika server menolak (mis. sudah didahului anggota lain)
         task.status = prev.status;
         task.actualMinutes = prev.actualMinutes;
+        task.completedById = prev.completedById;
+        task.completedByName = prev.completedByName;
         waterDrops = prevDrops;
-        showToast('Gagal menyimpan perubahan tugas: ' + err.message, 'error');
+        showToast(err.message || 'Gagal menyimpan perubahan tugas.', 'error');
         renderAll();
         await refreshData(false);
       } finally {
@@ -1698,11 +1791,16 @@
       e.preventDefault();
       const form = e.target;
       const submitBtn = form.querySelector('button[type="submit"]');
-      const assignee = USERS.find(u => u.id === document.getElementById('newTaskAssignee').value);
-      if (!assignee) {
-        showToast('Pilih penerima tugas terlebih dahulu.', 'error');
+
+      const checked = Array.from(document.querySelectorAll('#newTaskAssigneeList input:checked')).map(i => i.value);
+      if (!checked.length) {
+        showToast('Pilih minimal satu penerima tugas.', 'error');
         return;
       }
+      const assigneeIds = checked.includes('ALL') ? ['ALL'] : checked;
+      const assigneeName = assigneeIds[0] === 'ALL'
+        ? 'Semua Anggota'
+        : assigneeIds.map(id => (USERS.find(u => u.id === id) || {}).name || id).join(', ');
 
       const newTask = {
         id: 'T-' + Date.now(),
@@ -1710,28 +1808,31 @@
         category: document.getElementById('newTaskCategory').value,
         subCategory: document.getElementById('newTaskSubCategory').value,
         frequency: document.getElementById('newTaskFrequency').value,
-        assigneeId: assignee.id,
-        assigneeName: assignee.name,
+        assigneeId: assigneeIds.join(','),
+        assigneeIds,
+        assigneeName,
         points: parseInt(document.getElementById('newTaskPoints').value, 10),
         estMinutes: parseInt(document.getElementById('newTaskMinutes').value, 10),
         actualMinutes: 0,
         deadline: document.getElementById('newTaskDeadline').value,
         status: 'pending',
+        completedById: '',
+        completedByName: '',
         urgentTag: true
       };
 
       if (submitBtn) submitBtn.disabled = true;
       try {
-        await apiPost({
+        const res = await apiPost({
           action: 'ADD_TASK',
           user: userPayload(),
           task: {
             id: newTask.id, title: newTask.title, category: newTask.category, subCategory: newTask.subCategory,
-            frequency: newTask.frequency, assigneeId: newTask.assigneeId, assigneeName: newTask.assigneeName,
-            points: newTask.points, estMinutes: newTask.estMinutes, deadline: newTask.deadline,
-            createdBy: currentUser.id
+            frequency: newTask.frequency, assigneeIds: assigneeIds,
+            points: newTask.points, estMinutes: newTask.estMinutes, deadline: newTask.deadline
           }
         });
+        if (res.assigneeName) newTask.assigneeName = res.assigneeName; // nama resmi dari server
       } catch (err) {
         showToast('Gagal membuat tugas: ' + err.message, 'error');
         return;
@@ -1741,11 +1842,14 @@
 
       urgentTagged.add(newTask.id);
       tasks.unshift(newTask);
-      addActivityLog(currentUser.name, currentUser.role, 'Buat Tugas Baru', `Menugaskan "${newTask.title}" kepada ${assignee.name}`, 0);
+      addActivityLog(currentUser.name, currentUser.role, 'Buat Tugas Baru', `Menugaskan "${newTask.title}" kepada ${newTask.assigneeName}`, 0);
       closeModal('modalAddTask');
       form.reset();
+      clearAssigneeSelection();
       setDefaultTaskDeadline();
-      showToast(`Tugas berhasil dibuat dan ditag ke ${assignee.name}!`, 'success');
+      showToast(assigneeIds.length > 1 || assigneeIds[0] === 'ALL'
+        ? `Tugas bersama dibuat untuk ${newTask.assigneeName}. Siapa cepat, dia dapat poin!`
+        : `Tugas berhasil dibuat dan ditag ke ${newTask.assigneeName}!`, 'success');
       renderAll();
     }
 
@@ -1893,7 +1997,18 @@
     // 8. PANEL LEADER: PERHITUNGAN KPI ADIL & KOTAK ASPIRASI
     // -----------------------------------------------------------------------
     function calculateFairKPIForUser(userId) {
-      const userTasks = tasks.filter(t => t.assigneeId === userId);
+      const person = USERS.find(u => u.id === userId);
+      const isMemberUser = !!person && person.role === 'member';
+
+      // Tugas pribadi: dihitung penuh. Tugas bersama/berlomba: hanya dihitung untuk PENYELESAINYA
+      // (yang tidak menang tidak dihukum, yang menang mendapat poin).
+      const userTasks = tasks.filter(t => {
+        const forMe = t.assigneeIds.indexOf(userId) !== -1 || (t.assigneeIds.indexOf('ALL') !== -1 && isMemberUser);
+        if (!forMe) return false;
+        if (taskIsShared(t)) return t.status === 'completed' && t.completedById === userId;
+        return true;
+      });
+
       const totalAssignedPoints = userTasks.reduce((s, t) => s + t.points, 0);
       const earnedPoints = userTasks.filter(t => t.status === 'completed').reduce((s, t) => s + t.points, 0);
       const completedTasks = userTasks.filter(t => t.status === 'completed').length;
